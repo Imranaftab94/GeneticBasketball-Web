@@ -1,0 +1,29 @@
+{
+  "name": "geneticbasketball-web",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "type": "module" ,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Imranaftab94/GeneticBasketball-Web.git"
+  },
+  "author": "Waqas Akram",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Imranaftab94/GeneticBasketball-Web/issues"
+  },
+  "homepage": "https://github.com/Imranaftab94/GeneticBasketball-Web#readme",
+  "dependencies": {
+    "colors": "^1.4.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
