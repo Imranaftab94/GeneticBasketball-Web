@@ -19,6 +19,7 @@ Create a .env file in then root and add the following
 ```
 PORT = 8000
 MONGODB_URI = Use your mongodb uri here
+JWT_SECRET = your jwt secret here
 ```
 
 ### Install Dependencies
