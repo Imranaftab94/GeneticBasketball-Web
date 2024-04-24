@@ -5,8 +5,10 @@ import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
   registerUserSchema,
+  socailSignUpUserSchema,
   userSchema,
 } from "../validators/user.validator.js";
+import { extractFirstAndLastName } from "../services/common.service.js";
 
 // @desc    Register a new user
 // @route   POST /api/users/register
@@ -125,4 +127,55 @@ const updateUserProfile = asyncHandler(async (req, res) => {
   }
 });
 
-export { registerUser, authUser, updateUserProfile };
+// @desc    Social Auth
+// @route   POST /api/users/socialAuth
+// @access  Public
+const socialAuth = asyncHandler(async (req, res) => {
+  const { socialId, socialPlatform, email, name } = req.body;
+
+  // Validate request body
+  const { error } = socailSignUpUserSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  const { firstName, lastName } = extractFirstAndLastName(name);
+
+  const userExists = await User.findOne({ email });
+
+  if (userExists && !userExists.socialId) {
+    errorResponse(
+      res,
+      "You have already registered by this email using email and password, please use your email and password to login",
+      statusCodes.BAD_REQUEST
+    );
+  } else if (userExists && userExists.socialId) {
+    let data = {
+      user: userExists,
+      token: generateToken(userExists._id),
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else {
+    const user = await User.create({
+      email,
+      firstName,
+      lastName,
+      socialId,
+      socialPlatform
+    });
+
+    if (user) {
+      let data = {
+        user: user._doc,
+        token: generateToken(user._id),
+      };
+      successResponse(res, data, statusCodes.CREATED);
+    } else {
+      errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
+      res.status(statusCodes.BAD_REQUEST);
+    }
+  }
+});
+
+export { registerUser, authUser, updateUserProfile, socialAuth };
