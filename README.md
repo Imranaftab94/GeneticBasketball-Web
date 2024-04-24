@@ -20,6 +20,11 @@ Create a .env file in then root and add the following
 PORT = 8000
 MONGODB_URI = Use your mongodb uri here
 JWT_SECRET = your jwt secret here
+YOUR_EMAIL= your email
+YOUR_PASS= your email password
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+SENDER_EMAIL= sender email or you can use YOU_EMAIL
 ```
 
 ### Install Dependencies

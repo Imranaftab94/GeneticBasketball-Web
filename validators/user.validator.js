@@ -27,3 +27,15 @@ export const socailSignUpUserSchema = Joi.object({
   socialId: Joi.string().required(),
   socialPlatform: Joi.string().required(),
 });
+
+// send otp schema 
+export const sendOtpSchema = Joi.object({
+  email: Joi.string().email().required()
+})
+
+// verify otp schema 
+export const verifyOTPSchema = Joi.object({
+  email: Joi.string().email().required(),
+  otpCode: Joi.string().required(),
+})
+ 

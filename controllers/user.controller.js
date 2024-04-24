@@ -5,10 +5,20 @@ import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
   registerUserSchema,
+  sendOtpSchema,
   socailSignUpUserSchema,
   userSchema,
+  verifyOTPSchema,
 } from "../validators/user.validator.js";
-import { extractFirstAndLastName } from "../services/common.service.js";
+import bcrypt from 'bcryptjs';
+import {
+  extractFirstAndLastName,
+  generateOTP,
+} from "../services/common.service.js";
+import {
+  generateOTPEmailContent,
+  sendMail,
+} from "../services/email.service.js";
 
 // @desc    Register a new user
 // @route   POST /api/users/register
@@ -40,6 +50,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
   if (user) {
     let data = {
+      message:"Your account has been successfully created.",
       user: user._doc,
       token: generateToken(user._id),
     };
@@ -76,6 +87,7 @@ const authUser = asyncHandler(async (req, res) => {
 
   if (user && (await user.matchPassword(password))) {
     let data = {
+      message:"You have successfully Logged In.",
       user: user._doc,
       token: generateToken(user._id),
     };
@@ -116,6 +128,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
     // Send response with updated user and token
     let data = {
+      message:"Your profile has been successfully updated.",
       user: updatedUser,
       token: generateToken(updatedUser._id),
     };
@@ -151,6 +164,7 @@ const socialAuth = asyncHandler(async (req, res) => {
     );
   } else if (userExists && userExists.socialId) {
     let data = {
+      message:"You have successfully Logged In.",
       user: userExists,
       token: generateToken(userExists._id),
     };
@@ -161,11 +175,12 @@ const socialAuth = asyncHandler(async (req, res) => {
       firstName,
       lastName,
       socialId,
-      socialPlatform
+      socialPlatform,
     });
 
     if (user) {
       let data = {
+        message:"Your account has been successfully created.",
         user: user._doc,
         token: generateToken(user._id),
       };
@@ -180,16 +195,143 @@ const socialAuth = asyncHandler(async (req, res) => {
 // @route   GET /api/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id)
+  const user = await User.findById(req.user._id);
 
   if (user) {
     let data = {
+      message:"Profile details has been successfully fetched.",
       user: user._doc,
     };
     successResponse(res, data, statusCodes.OK);
   } else {
     errorResponse(res, "User Not Found", statusCodes.NOT_FOUND);
   }
-})
+});
 
-export { registerUser, authUser, updateUserProfile, socialAuth, getUserProfile };
+// @desc    Send Email Within OTP
+// @route   Post /api/users/sendOTP
+// @access  Public
+const sendOTP = asyncHandler(async (req, res) => {
+  // Validate request body
+  const { error } = sendOtpSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+
+  if (user) {
+    let otp = generateOTP(4);
+    user.otpCode = otp;
+
+    await sendMail(email, "OTP Verification", generateOTPEmailContent(otp));
+    await user.save();
+    let data = {
+      message: "One Time Password has been sent on your registered email.",
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else {
+    errorResponse(res, "User Not Found", statusCodes.NOT_FOUND);
+  }
+});
+
+// @desc    VerifyOTPCode
+// @route   Post /api/users/verifyOTP
+// @access  Public
+const verifyOTPCode = asyncHandler(async (req, res) => {
+  // Validate request body
+  const { error } = verifyOTPSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+  const { email, otpCode } = req.body;
+  const user = await User.findOne({ email });
+
+  if (user && user.otpCode === otpCode) {
+    user.otpCode = null;
+    await user.save();
+    let data = {
+      message: "OTP code has been successfully verified.",
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else if (user && user.otpCode !== otpCode) {
+    errorResponse(res, "Invalid OTP code", statusCodes.BAD_REQUEST);
+  } else {
+    errorResponse(res, "User Not Found", statusCodes.NOT_FOUND);
+  }
+});
+
+// @desc    Reset Password
+// @route   POST /api/users/resetPassword
+// @access  Public
+const resetPassword = asyncHandler(async (req, res) => {
+
+  // Validate request body
+  const { error } = registerUserSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  const { email, password } = req.body;
+
+  const userExists = await User.findOne({ email });
+
+  if (!userExists) {
+    errorResponse(res, "User Not found", statusCodes.NOT_FOUND);
+  } else if (userExists) {
+
+    userExists.password = password;
+    await userExists.save()
+    let data = {
+      message: "Your password has been reset successfully.",
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else {
+    errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
+  }
+});
+
+// @desc    Verify account email
+// @route   Post /api/users/verifyAccountEmail
+// @access  Public
+const verifyAccountEmail = asyncHandler(async (req, res) => {
+  // Validate request body
+  const { error } = verifyOTPSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+  const { email, otpCode } = req.body;
+  const user = await User.findOne({ email });
+
+  if (user && user.otpCode === otpCode) {
+    user.otpCode = null;
+    user.isEmailVerified = true;
+    await user.save();
+    let data = {
+      message: "Your email has been successfully verified.",
+      user: user,
+      token: generateToken(user._id)
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else if (user && user.otpCode !== otpCode) {
+    errorResponse(res, "Invalid OTP code", statusCodes.BAD_REQUEST);
+  } else {
+    errorResponse(res, "User Not Found", statusCodes.NOT_FOUND);
+  }
+});
+
+export {
+  registerUser,
+  authUser,
+  updateUserProfile,
+  socialAuth,
+  getUserProfile,
+  sendOTP,
+  verifyOTPCode,
+  resetPassword,
+  verifyAccountEmail,
+};
