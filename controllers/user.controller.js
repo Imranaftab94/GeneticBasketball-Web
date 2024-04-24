@@ -108,6 +108,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     user.address = req.body.address;
     user.profilePhoto = req.body.profilePhoto;
     user.timeSlots = req.body.timeSlots;
+    user.isCompletedProfile = true;
 
     // Save updated user
     const updatedUser = await user.save();
