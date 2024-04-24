@@ -46,7 +46,6 @@ const registerUser = asyncHandler(async (req, res) => {
     successResponse(res, data, statusCodes.CREATED);
   } else {
     errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
-    res.status(statusCodes.BAD_REQUEST);
   }
 });
 
@@ -173,9 +172,24 @@ const socialAuth = asyncHandler(async (req, res) => {
       successResponse(res, data, statusCodes.CREATED);
     } else {
       errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
-      res.status(statusCodes.BAD_REQUEST);
     }
   }
 });
 
-export { registerUser, authUser, updateUserProfile, socialAuth };
+// @desc    Get user profile
+// @route   GET /api/users/profile
+// @access  Private
+const getUserProfile = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id)
+
+  if (user) {
+    let data = {
+      user: user._doc,
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else {
+    errorResponse(res, "User Not Found", statusCodes.NOT_FOUND);
+  }
+})
+
+export { registerUser, authUser, updateUserProfile, socialAuth, getUserProfile };

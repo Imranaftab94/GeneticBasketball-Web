@@ -1,6 +1,7 @@
 import express from "express";
 import {
   authUser,
+  getUserProfile,
   registerUser,
   socialAuth,
   updateUserProfile,
@@ -12,5 +13,6 @@ router.post("/register", registerUser);
 router.post("/login", authUser);
 router.route("/updateProfile").put(protect, updateUserProfile);
 router.post("/socialAuth", socialAuth);
+router.route("/profile").get(protect, getUserProfile);
 
 export default router;
