@@ -14,7 +14,7 @@ export const userSchema = Joi.object({
   birthdate: Joi.date(),
   height: Joi.string(),
   position: Joi.string().required(),
-  radius: Joi.number().required(),
+  radius: Joi.number(),
   address: Joi.string().required(),
   profilePhoto: Joi.string(),
   timeSlots: Joi.array(),

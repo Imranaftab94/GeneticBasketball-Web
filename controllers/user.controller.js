@@ -10,7 +10,6 @@ import {
   userSchema,
   verifyOTPSchema,
 } from "../validators/user.validator.js";
-import bcrypt from 'bcryptjs';
 import {
   extractFirstAndLastName,
   generateOTP,
@@ -43,14 +42,19 @@ const registerUser = asyncHandler(async (req, res) => {
     );
   }
 
+  let otpCode = generateOTP(4);
+
+  await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
+
   const user = await User.create({
     email,
     password,
+    otpCode,
   });
 
   if (user) {
     let data = {
-      message:"Your account has been successfully created.",
+      message:"For verification of your email, An OTP code has been sent to your email.",
       user: user._doc,
       token: generateToken(user._id),
     };
@@ -92,7 +96,7 @@ const authUser = asyncHandler(async (req, res) => {
       token: generateToken(user._id),
     };
 
-    successResponse(res, data, statusCodes.CREATED);
+    successResponse(res, data, statusCodes.OK);
   }
 });
 
@@ -176,6 +180,7 @@ const socialAuth = asyncHandler(async (req, res) => {
       lastName,
       socialId,
       socialPlatform,
+      isEmailVerified: true
     });
 
     if (user) {
