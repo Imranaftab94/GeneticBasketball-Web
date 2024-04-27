@@ -52,6 +52,8 @@ const registerUser = asyncHandler(async (req, res) => {
     otpCode,
   });
 
+  delete user._doc.otpCode;
+
   if (user) {
     let data = {
       message:
