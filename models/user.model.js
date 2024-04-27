@@ -2,36 +2,26 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { Roles } from "../constants/role.constant.js";
 
-// Define schema for timeslot
-const timeslotSchema = mongoose.Schema({
-  day: {
-    type: String,
-    required: true,
-  },
-  startTime: {
-    type: String,
-    required: true,
-  },
-  endTime: {
-    type: String,
-    required: true,
-  },
-});
+
 
 // Define Schema for User
 const userSchema = mongoose.Schema(
   {
     firstName: {
       type: String,
+      default: null,
     },
     lastName: {
       type: String,
+      default: null,
     },
     displayName: {
       type: String,
+      default: null,
     },
     profilePhoto: {
       type: String,
+      default: null,
     },
     email: {
       type: String,
@@ -48,23 +38,27 @@ const userSchema = mongoose.Schema(
     socialPlatform: {
       type: String,
     },
-    socialId:{
-      type: String
+    socialId: {
+      type: String,
     },
     birthdate: {
       type: Date,
+      default: null,
     },
     height: {
       type: String,
+      default: null,
     },
     position: {
       type: String,
+      default: null,
     },
     radius: {
       type: Number,
     },
     address: {
       type: String,
+      default: null,
     },
     isCompletedProfile: {
       type: Boolean,
@@ -77,7 +71,6 @@ const userSchema = mongoose.Schema(
     otpCode: {
       type: String,
     },
-    timeSlots: [timeslotSchema],
   },
   {
     timestamps: true,

@@ -18,9 +18,11 @@ import {
   generateOTPEmailContent,
   sendMail,
 } from "../services/email.service.js";
+import { Roles } from "../constants/role.constant.js";
+import { CommunityCenter } from "../models/community.model.js";
 
 // @desc    Register a new user
-// @route   POST /api/users/register
+// @route   POST /api/v1/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -44,8 +46,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
   let otpCode = generateOTP(4);
 
-  await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
-
   const user = await User.create({
     email,
     password,
@@ -54,18 +54,20 @@ const registerUser = asyncHandler(async (req, res) => {
 
   if (user) {
     let data = {
-      message:"For verification of your email, An OTP code has been sent to your email.",
+      message:
+        "For verification of your email, An OTP code has been sent to your email.",
       user: user._doc,
       token: generateToken(user._id),
     };
     successResponse(res, data, statusCodes.CREATED);
+    await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
   } else {
     errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
   }
 });
 
 // @desc    Auth user & get token
-// @route   POST /api/users/login
+// @route   POST /api/v1/users/login
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
@@ -89,19 +91,38 @@ const authUser = asyncHandler(async (req, res) => {
     return;
   }
 
-  if (user && (await user.matchPassword(password))) {
+  if (
+    user &&
+    (await user.matchPassword(password)) &&
+    user.role !== Roles.COMMUNITY
+  ) {
     let data = {
-      message:"You have successfully Logged In.",
+      message: "You have successfully Logged In.",
       user: user._doc,
       token: generateToken(user._id),
     };
 
     successResponse(res, data, statusCodes.OK);
+  } else if (
+    user &&
+    (await user.matchPassword(password)) &&
+    user.role === Roles.COMMUNITY
+  ) {
+    let community = await CommunityCenter.findOne({ email });
+    if (community) {
+      let data = {
+        message: "You have successfully Logged In.",
+        user: { ...community._doc, role: user.role },
+        token: generateToken(user._id),
+      };
+
+      successResponse(res, data, statusCodes.OK);
+    }
   }
 });
 
 // @desc    Update user profile
-// @route   PUT /api/users/updateProfile
+// @route   PUT /api/v1/users/updateProfile
 // @access  Private
 const updateUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
@@ -132,7 +153,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
     // Send response with updated user and token
     let data = {
-      message:"Your profile has been successfully updated.",
+      message: "Your profile has been successfully updated.",
       user: updatedUser,
       token: generateToken(updatedUser._id),
     };
@@ -144,7 +165,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 });
 
 // @desc    Social Auth
-// @route   POST /api/users/socialAuth
+// @route   POST /api/v1/users/socialAuth
 // @access  Public
 const socialAuth = asyncHandler(async (req, res) => {
   const { socialId, socialPlatform, email, name } = req.body;
@@ -168,7 +189,7 @@ const socialAuth = asyncHandler(async (req, res) => {
     );
   } else if (userExists && userExists.socialId) {
     let data = {
-      message:"You have successfully Logged In.",
+      message: "You have successfully Logged In.",
       user: userExists,
       token: generateToken(userExists._id),
     };
@@ -180,12 +201,12 @@ const socialAuth = asyncHandler(async (req, res) => {
       lastName,
       socialId,
       socialPlatform,
-      isEmailVerified: true
+      isEmailVerified: true,
     });
 
     if (user) {
       let data = {
-        message:"Your account has been successfully created.",
+        message: "Your account has been successfully created.",
         user: user._doc,
         token: generateToken(user._id),
       };
@@ -197,14 +218,14 @@ const socialAuth = asyncHandler(async (req, res) => {
 });
 
 // @desc    Get user profile
-// @route   GET /api/users/profile
+// @route   GET /api/v1/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
 
   if (user) {
     let data = {
-      message:"Profile details has been successfully fetched.",
+      message: "Profile details has been successfully fetched.",
       user: user._doc,
     };
     successResponse(res, data, statusCodes.OK);
@@ -214,7 +235,7 @@ const getUserProfile = asyncHandler(async (req, res) => {
 });
 
 // @desc    Send Email Within OTP
-// @route   Post /api/users/sendOTP
+// @route   Post /api/v1/users/sendOTP
 // @access  Public
 const sendOTP = asyncHandler(async (req, res) => {
   // Validate request body
@@ -242,7 +263,7 @@ const sendOTP = asyncHandler(async (req, res) => {
 });
 
 // @desc    VerifyOTPCode
-// @route   Post /api/users/verifyOTP
+// @route   Post /api/v1/users/verifyOTP
 // @access  Public
 const verifyOTPCode = asyncHandler(async (req, res) => {
   // Validate request body
@@ -269,10 +290,9 @@ const verifyOTPCode = asyncHandler(async (req, res) => {
 });
 
 // @desc    Reset Password
-// @route   POST /api/users/resetPassword
+// @route   POST /api/v1/users/resetPassword
 // @access  Public
 const resetPassword = asyncHandler(async (req, res) => {
-
   // Validate request body
   const { error } = registerUserSchema.validate(req.body);
   if (error) {
@@ -287,9 +307,8 @@ const resetPassword = asyncHandler(async (req, res) => {
   if (!userExists) {
     errorResponse(res, "User Not found", statusCodes.NOT_FOUND);
   } else if (userExists) {
-
     userExists.password = password;
-    await userExists.save()
+    await userExists.save();
     let data = {
       message: "Your password has been reset successfully.",
     };
@@ -300,7 +319,7 @@ const resetPassword = asyncHandler(async (req, res) => {
 });
 
 // @desc    Verify account email
-// @route   Post /api/users/verifyAccountEmail
+// @route   Post /api/v1/users/verifyAccountEmail
 // @access  Public
 const verifyAccountEmail = asyncHandler(async (req, res) => {
   // Validate request body
@@ -319,7 +338,7 @@ const verifyAccountEmail = asyncHandler(async (req, res) => {
     let data = {
       message: "Your email has been successfully verified.",
       user: user,
-      token: generateToken(user._id)
+      token: generateToken(user._id),
     };
     successResponse(res, data, statusCodes.OK);
   } else if (user && user.otpCode !== otpCode) {
