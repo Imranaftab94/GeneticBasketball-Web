@@ -15,6 +15,7 @@ export const userSchema = Joi.object({
   height: Joi.string(),
   position: Joi.string().required(),
   address: Joi.string().required(),
+  radius: Joi.string().required(),
   profilePhoto: Joi.string(),
 });
 
