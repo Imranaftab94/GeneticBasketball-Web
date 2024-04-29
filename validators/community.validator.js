@@ -1,11 +1,19 @@
 import Joi from "joi";
 // Define Joi schema for timeslot
-const timeslotSchema = Joi.object({
-  day: Joi.string().required(),
+const slotSchema = Joi.object({
   startTime: Joi.string().required(),
   endTime: Joi.string().required(),
-  available: Joi.boolean(),
+  available: Joi.boolean().required(),
 });
+
+const daySchema = Joi.object({
+  day: Joi.string()
+    .valid("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+    .required(),
+  slots: Joi.array().items(slotSchema).required(),
+});
+
+const communityTimeSlotsSchema = Joi.array().items(daySchema);
 
 // Define Joi schema for Community Center
 const communityCenterSchema = Joi.object({
@@ -17,10 +25,14 @@ const communityCenterSchema = Joi.object({
     longitude: Joi.number().required(),
   }),
   address: Joi.string().required(),
-  radius: Joi.number().required(),
-  timeSlots: Joi.array().items(timeslotSchema),
   password: Joi.string().required(),
   description: Joi.string(),
 });
 
-export { communityCenterSchema };
+//Define Slots schema
+const addSlotsSchema = Joi.object({
+  communityTimeSlots: communityTimeSlotsSchema,
+  community_id: Joi.string().required(),
+});
+
+export { communityCenterSchema, addSlotsSchema };

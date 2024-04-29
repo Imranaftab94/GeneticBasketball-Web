@@ -3,7 +3,7 @@ import { User } from "../models/user.model.js";
 import { Roles } from "../constants/role.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
-import { communityCenterSchema } from "../validators/community.validator.js";
+import { addSlotsSchema, communityCenterSchema } from "../validators/community.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import {
   generateCommunityCenterCredentialEmailContent,
@@ -63,7 +63,7 @@ const registerCommunity = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { name, email, image, location, address, timeSlots, password, radius, description } =
+  const { name, email, image, location, address, password, description } =
     req.body;
 
   const userExists = await User.findOne({ email });
@@ -76,6 +76,11 @@ const registerCommunity = asyncHandler(async (req, res) => {
     );
   }
 
+  let coordinates = [location.longitude, location.latitude];
+  let _location = {
+    type: "Point",
+    coordinates,
+  };
   const user = await User.create({
     email,
     password,
@@ -90,13 +95,18 @@ const registerCommunity = asyncHandler(async (req, res) => {
       image,
       location,
       address,
-      timeSlots,
-      radius,
       description,
+      _location,
+      location,
       community_user: user._id,
     });
+    delete communityUser._doc._location
     let data = {
       message: "Community user have been added successfully.",
+      community_user: {
+        community_id: communityUser._id,
+        ...communityUser._doc,
+      },
     };
     successResponse(res, data, statusCodes.CREATED);
     await sendMail(
@@ -109,4 +119,61 @@ const registerCommunity = asyncHandler(async (req, res) => {
   }
 });
 
-export { getCommunities, registerCommunity };
+// @desc    Add slots
+// @route   POST /api/v1/community/addSlots
+// @access  Private
+const addSlots = asyncHandler(async (req, res) => {
+  // Validate request body
+  const { error } = addSlotsSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  const { community_id, communityTimeSlots } = req.body;
+
+  let findCommunity = await CommunityCenter.findById(community_id);
+
+  if (!findCommunity) {
+    errorResponse(res, "No community center found", statusCodes.NOT_FOUND);
+  }
+
+  findCommunity.communityTimeSlots = communityTimeSlots;
+  const updatedCommunity = await findCommunity.save();
+  delete updatedCommunity._doc._location
+  let data = {
+    message: "Slots have been added successfully!",
+    community_user: {
+      community_id: updatedCommunity._id,
+      ...updatedCommunity._doc,
+    },
+  };
+  successResponse(res, data, statusCodes.CREATED);
+});
+
+// @desc    Get Single community based on id
+// @route   GET /api/v1/community/:id
+// @access  Private
+const getCommunityDetail = asyncHandler(async (req, res) => {
+  let community_id = req.params.id
+  if(!community_id){
+    errorResponse(res, "No community center found", statusCodes.NOT_FOUND);
+  }
+  const findCommunity = await CommunityCenter.findById(community_id);
+
+  if (findCommunity) {
+    delete findCommunity._doc._location
+    let data = {
+      message: "Community center detail have been fetched successfully!",
+      community_user: {
+        community_id: findCommunity._id,
+        ...findCommunity._doc,
+      },
+    };
+    successResponse(res, data, statusCodes.OK);
+  } else {
+    errorResponse(res, "No community center found", statusCodes.NOT_FOUND);
+  }
+});
+
+export { getCommunities, registerCommunity, addSlots, getCommunityDetail };

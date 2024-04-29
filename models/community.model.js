@@ -1,25 +1,40 @@
 import mongoose from "mongoose";
 const Schema = mongoose.Schema;
 
-// Define schema for timeslot
-const timeslotSchema = mongoose.Schema({
-  day: {
-    type: String,
-    required: true,
+// Define a schema for slots within communityTimeSlots
+const slotSchema = new Schema(
+  {
+    startTime: {
+      type: String,
+      required: true,
+    },
+    endTime: {
+      type: String,
+      required: true,
+    },
+    available: {
+      type: Boolean,
+      default: true, // Default value for available
+    },
   },
-  startTime: {
-    type: String,
-    required: true,
+  {
+    timestamps: true, // Include timestamps for slots
+  }
+);
+
+// Define a schema for communityTimeSlots
+const communityTimeSlotSchema = new Schema(
+  {
+    day: {
+      type: String,
+      required: true,
+    },
+    slots: [slotSchema], // Array of slots with their own schema
   },
-  endTime: {
-    type: String,
-    required: true,
-  },
-  available: {
-    type: Boolean,
-    default: true,
-  },
-});
+  {
+    timestamps: true, // Include timestamps for communityTimeSlots
+  }
+);
 
 // Define Community Center Schema
 const communityCenterSchema = new Schema(
@@ -36,6 +51,18 @@ const communityCenterSchema = new Schema(
       type: String, // Assuming you store the image URL
       required: true,
     },
+    _location: {
+      type: {
+        type: String, // Must be 'Point' for GeoJSON
+        enum: ["Point"], // Only 'Point' is allowed
+        default: "Point",
+        required: true,
+      },
+      coordinates: {
+        type: [Number], // Array of numbers [longitude, latitude]
+        required: true,
+      },
+    },
     location: {
       latitude: {
         type: Number,
@@ -48,14 +75,10 @@ const communityCenterSchema = new Schema(
       type: String,
       required: true,
     },
-    radius: {
-      type: Number,
-      required: true,
-    },
     description: {
       type: String,
     },
-    timeSlots: [timeslotSchema],
+    communityTimeSlots: [communityTimeSlotSchema],
     community_user: {
       type: Schema.Types.ObjectId,
       ref: "User",
