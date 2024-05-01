@@ -17,6 +17,10 @@ export const userSchema = Joi.object({
   address: Joi.string().required(),
   radius: Joi.string().required(),
   profilePhoto: Joi.string(),
+  location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+  }),
 });
 
 //Apply For social signup
