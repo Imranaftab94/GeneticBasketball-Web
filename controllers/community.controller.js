@@ -17,35 +17,31 @@ import {
 // @route   GET /api/v1/community/getAll
 // @access  Private
 const getCommunities = asyncHandler(async (req, res) => {
-  const latitude = parseFloat(req.query.latitude); // Parse latitude from request query
-  const longitude = parseFloat(req.query.longitude); // Parse longitude from request query
-  const radius = parseFloat(req.query.radius); // Parse radius from request query
-  const page = parseInt(req.query.page) || 1; // Parse page number from request query, default to 1 if not provided
-  const limit = parseInt(req.query.limit) || 25; // Parse limit from request query, default to 10 if not provided
-  const searchTerm = req.query.searchTerm; // Search term from request query
+  const latitude = req.query.latitude ? parseFloat(req.query.latitude) : null;
+  const longitude = req.query.longitude ? parseFloat(req.query.longitude) : null;
+  const radius = req.query.radius ? parseFloat(req.query.radius) : null;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 25;
+  const searchTerm = req.query.searchTerm;
 
-  if (!latitude || !longitude || !radius) {
-    return errorResponse(
-      res,
-      "Latitude, longitude, and radius are required parameters.",
-      statusCodes.BAD_REQUEST
-    );
-  }
+  const query = {};
 
-  // Modified query to use $geoWithin instead of $nearSphere
-  const query = {
-    _location: {
+  // Add geospatial search if all necessary parameters are present
+  if (latitude && longitude && radius) {
+    query._location = {
       $geoWithin: {
         $centerSphere: [
           [longitude, latitude], radius / 6378.1 // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
         ]
       }
-    },
-  };
+    };
+  }
 
+  // Search by name if searchTerm is provided
   if (searchTerm) {
     const searchRegex = new RegExp(searchTerm, "i"); // Case-insensitive regex for search term
-    query.$or = [{ name: searchRegex }]; // Search in name field
+    query.$or = query.$or || []; // Initialize $or if not already initialized
+    query.$or.push({ name: searchRegex });
   }
 
   const totalRecords = await CommunityCenter.countDocuments(query);
@@ -58,7 +54,7 @@ const getCommunities = asyncHandler(async (req, res) => {
     .skip(offset)
     .limit(limit);
 
-  const message = `Communities within radius ${radius} kilometers from (${latitude}, ${longitude}) have been successfully fetched.`;
+  const message = `Communities fetched successfully.`;
 
   const data = {
     message,
