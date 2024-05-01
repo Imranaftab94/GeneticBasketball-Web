@@ -64,6 +64,14 @@ const userSchema = mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    location: {
+      latitude: {
+        type: Number,
+      },
+      longitude: {
+        type: Number,
+      },
+    },
     isEmailVerified: {
       type: Boolean,
       default: false,
