@@ -3,7 +3,10 @@ import { User } from "../models/user.model.js";
 import { Roles } from "../constants/role.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
-import { addSlotsSchema, communityCenterSchema } from "../validators/community.validator.js";
+import {
+  addSlotsSchema,
+  communityCenterSchema,
+} from "../validators/community.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import {
   generateCommunityCenterCredentialEmailContent,
@@ -14,19 +17,37 @@ import {
 // @route   GET /api/v1/community/getAll
 // @access  Private
 const getCommunities = asyncHandler(async (req, res) => {
-  const radius = req.query.radius;
+  const latitude = parseFloat(req.query.latitude); // Parse latitude from request query
+  const longitude = parseFloat(req.query.longitude); // Parse longitude from request query
+  const radius = parseFloat(req.query.radius); // Parse radius from request query
   const page = parseInt(req.query.page) || 1; // Parse page number from request query, default to 1 if not provided
-  const limit = parseInt(req.query.limit) || 10; // Parse limit from request query, default to 10 if not provided
+  const limit = parseInt(req.query.limit) || 25; // Parse limit from request query, default to 10 if not provided
   const searchTerm = req.query.searchTerm; // Search term from request query
 
-  let query = radius ? { radius: { $lte: radius } } : {};
+  if (!latitude || !longitude || !radius) {
+    return errorResponse(
+      res,
+      "Latitude, longitude, and radius are required parameters.",
+      statusCodes.BAD_REQUEST
+    );
+  }
+
+  // Modified query to use $geoWithin instead of $nearSphere
+  const query = {
+    _location: {
+      $geoWithin: {
+        $centerSphere: [
+          [longitude, latitude], radius / 6378.1 // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
+        ]
+      }
+    },
+  };
 
   if (searchTerm) {
     const searchRegex = new RegExp(searchTerm, "i"); // Case-insensitive regex for search term
-    query.$or = [
-      { name: searchRegex }, // Search in firstName
-    ];
+    query.$or = [{ name: searchRegex }]; // Search in name field
   }
+
   const totalRecords = await CommunityCenter.countDocuments(query);
   const totalCount = await CommunityCenter.countDocuments(query);
 
@@ -37,9 +58,7 @@ const getCommunities = asyncHandler(async (req, res) => {
     .skip(offset)
     .limit(limit);
 
-  const message = radius
-    ? `Communities within radius ${radius} have been successfully fetched.`
-    : "Communities have been successfully fetched.";
+  const message = `Communities within radius ${radius} kilometers from (${latitude}, ${longitude}) have been successfully fetched.`;
 
   const data = {
     message,
@@ -51,6 +70,7 @@ const getCommunities = asyncHandler(async (req, res) => {
 
   successResponse(res, data, statusCodes.OK);
 });
+
 
 // @desc    Add a new community user
 // @route   POST /api/v1/community/register
@@ -100,7 +120,7 @@ const registerCommunity = asyncHandler(async (req, res) => {
       location,
       community_user: user._id,
     });
-    delete communityUser._doc._location
+    delete communityUser._doc._location;
     let data = {
       message: "Community user have been added successfully.",
       community_user: {
@@ -140,7 +160,7 @@ const addSlots = asyncHandler(async (req, res) => {
 
   findCommunity.communityTimeSlots = communityTimeSlots;
   const updatedCommunity = await findCommunity.save();
-  delete updatedCommunity._doc._location
+  delete updatedCommunity._doc._location;
   let data = {
     message: "Slots have been added successfully!",
     community_user: {
@@ -155,14 +175,14 @@ const addSlots = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/community/:id
 // @access  Private
 const getCommunityDetail = asyncHandler(async (req, res) => {
-  let community_id = req.params.id
-  if(!community_id){
+  let community_id = req.params.id;
+  if (!community_id) {
     errorResponse(res, "No community center found", statusCodes.NOT_FOUND);
   }
   const findCommunity = await CommunityCenter.findById(community_id);
 
   if (findCommunity) {
-    delete findCommunity._doc._location
+    delete findCommunity._doc._location;
     let data = {
       message: "Community center detail have been fetched successfully!",
       community_user: {
