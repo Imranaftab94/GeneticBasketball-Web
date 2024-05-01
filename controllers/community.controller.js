@@ -18,7 +18,9 @@ import {
 // @access  Private
 const getCommunities = asyncHandler(async (req, res) => {
   const latitude = req.query.latitude ? parseFloat(req.query.latitude) : null;
-  const longitude = req.query.longitude ? parseFloat(req.query.longitude) : null;
+  const longitude = req.query.longitude
+    ? parseFloat(req.query.longitude)
+    : null;
   const radius = req.query.radius ? parseFloat(req.query.radius) : null;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 25;
@@ -31,9 +33,10 @@ const getCommunities = asyncHandler(async (req, res) => {
     query._location = {
       $geoWithin: {
         $centerSphere: [
-          [longitude, latitude], radius / 6378.1 // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
-        ]
-      }
+          [longitude, latitude],
+          radius / 6378.1, // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
+        ],
+      },
     };
   }
 
@@ -66,7 +69,6 @@ const getCommunities = asyncHandler(async (req, res) => {
 
   successResponse(res, data, statusCodes.OK);
 });
-
 
 // @desc    Add a new community user
 // @route   POST /api/v1/community/register
@@ -192,4 +194,63 @@ const getCommunityDetail = asyncHandler(async (req, res) => {
   }
 });
 
-export { getCommunities, registerCommunity, addSlots, getCommunityDetail };
+// @desc    Delete slots
+// @route   POST /api/v1/community/deleteSlot
+// @access  Private
+
+const deleteSlot = asyncHandler(async (req, res) => {
+  const communityId = req.params.communityId; // Assuming the community ID is passed as a URL parameter
+  const slotId = req.params.slotId; // Assuming the slot ID is passed as a URL parameter
+
+  if (!communityId || !slotId) {
+    return res.status(400).json({
+      success: false,
+      message: "Community ID and Slot ID are required",
+    });
+  }
+
+  try {
+    // First, check if the slot exists
+    const community = await CommunityCenter.findOne(
+      {
+        _id: communityId,
+        "communityTimeSlots.slots._id": slotId,
+      },
+      { "communityTimeSlots.$": 1 }
+    ); // Project only the relevant part of communityTimeSlots
+
+    if (!community) {
+      errorResponse(
+        res,
+        "No slot found with provided ID",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    // Update community document to pull (remove) the slot with the given slotId
+    const result = await CommunityCenter.updateOne(
+      { _id: communityId },
+      { $pull: { "communityTimeSlots.$[].slots": { _id: slotId } } } // The positional $[] operator indicates to MongoDB to search in all documents in the communityTimeSlots array.
+    );
+
+    if (result.modifiedCount === 0) {
+      return errorResponse(
+        res,
+        "No slot found or no changes made",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    successResponse(res, result, statusCodes.OK);
+  } catch (error) {
+    errorResponse(error.message, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+export {
+  getCommunities,
+  registerCommunity,
+  addSlots,
+  getCommunityDetail,
+  deleteSlot,
+};
