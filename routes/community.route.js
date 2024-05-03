@@ -5,6 +5,7 @@ import {
   deleteSlot,
   getCommunities,
   getCommunityDetail,
+  getCommunitySlots,
   registerCommunity,
 } from "../controllers/community.controller.js";
 const router = express.Router();
@@ -14,5 +15,6 @@ router.route("/register").post(protect, admin, registerCommunity);
 router.route("/addSlots").post(protect, admin, addSlots);
 router.route("/:id").get(protect, getCommunityDetail);
 router.route("/:communityId/slot/:slotId").delete(protect, admin, deleteSlot);
+router.route('/:communityCenterId/bookings/:date').get(protect, getCommunitySlots);
 
 export default router;

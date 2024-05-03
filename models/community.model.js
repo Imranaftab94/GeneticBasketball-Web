@@ -1,6 +1,22 @@
 import mongoose from "mongoose";
 const Schema = mongoose.Schema;
 
+// Define Booking Schema
+const bookingSchema = new Schema(
+  {
+    bookingDate: {
+      type: Date,
+    },
+    bookedBy: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+    },
+  },
+  {
+    timestamps: true, // Include timestamps for slots
+  }
+);
+
 // Define a schema for slots within communityTimeSlots
 const slotSchema = new Schema(
   {
@@ -16,6 +32,7 @@ const slotSchema = new Schema(
       type: Boolean,
       default: true, // Default value for available
     },
+    bookings: [bookingSchema],
   },
   {
     timestamps: true, // Include timestamps for slots

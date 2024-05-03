@@ -27,3 +27,22 @@ export const generateOTP = (length) => {
   }
   return OTP;
 };
+
+/**
+ * Genereate otp
+ * @param {date} Date
+ * @returns
+ */
+export const getAbbreviatedDayOfWeek = (date) => {
+  const abbreviatedDaysOfWeek = [
+    "SUN",
+    "MON",
+    "TUE",
+    "WED",
+    "THU",
+    "FRI",
+    "SAT",
+  ];
+  const dayIndex = new Date(date).getDay();
+  return abbreviatedDaysOfWeek[dayIndex];
+};

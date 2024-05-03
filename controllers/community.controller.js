@@ -12,6 +12,8 @@ import {
   generateCommunityCenterCredentialEmailContent,
   sendMail,
 } from "../services/email.service.js";
+import mongoose from "mongoose";
+import { getAbbreviatedDayOfWeek } from "../services/common.service.js";
 
 // @desc    Get communities list
 // @route   GET /api/v1/community/getAll
@@ -283,10 +285,123 @@ const deleteSlot = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Get Single community based on id
+// @route   GET /api/v1/community/:id
+// @access  Private
+const getCommunitySlots = asyncHandler(async (req, res) => {
+  const { communityCenterId, date } = req.params;
+  try {
+    const communityCenter = await CommunityCenter.findById(communityCenterId);
+
+    if (!communityCenter) {
+      return errorResponse(
+        res,
+        "Community center not found",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    const results = await CommunityCenter.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(communityCenterId),
+        },
+      },
+      {
+        $unwind: "$communityTimeSlots",
+      },
+      {
+        $match: {
+          "communityTimeSlots.day": getAbbreviatedDayOfWeek(new Date(date)),
+        },
+      },
+      {
+        $unwind: "$communityTimeSlots.slots",
+      },
+      {
+        $unwind: {
+          path: "$communityTimeSlots.slots.bookings",
+          preserveNullAndEmptyArrays: true, // Ensure that slots with no bookings are also included
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "communityTimeSlots.slots.bookings.bookedBy",
+          foreignField: "_id",
+          as: "bookedByDetails",
+        },
+      },
+      {
+        $addFields: {
+          "communityTimeSlots.slots.bookings.bookedBy": {
+            $arrayElemAt: ["$bookedByDetails", 0], // Take the first element from the fetched array
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$communityTimeSlots.slots._id",
+          startTime: { $first: "$communityTimeSlots.slots.startTime" },
+          endTime: { $first: "$communityTimeSlots.slots.endTime" },
+          available: { $first: "$communityTimeSlots.slots.available" },
+          bookings: {
+            $push: {
+              $cond: {
+                if: {
+                  $eq: [
+                    { $type: "$communityTimeSlots.slots.bookings._id" },
+                    "missing",
+                  ],
+                },
+                then: "$$REMOVE",
+                else: {
+                  bookingDate: "$communityTimeSlots.slots.bookings.bookingDate",
+                  bookedBy: "$communityTimeSlots.slots.bookings.bookedBy",
+                  _id: "$communityTimeSlots.slots.bookings._id",
+                  createdAt: "$communityTimeSlots.slots.bookings.createdAt",
+                  updatedAt: "$communityTimeSlots.slots.bookings.updatedAt",
+                },
+              },
+            },
+          },
+          createdAt: { $first: "$communityTimeSlots.slots.createdAt" },
+          updatedAt: { $first: "$communityTimeSlots.slots.updatedAt" },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          slots: { $push: "$$ROOT" },
+        },
+      },
+    ]);
+
+    const response = {
+      communityCenter: {
+        _id: communityCenter._id,
+        name: communityCenter.name,
+      },
+      day: getAbbreviatedDayOfWeek(new Date(date)),
+      slots: results.map((item) => item.slots).flat(),
+    };
+
+    successResponse(res, response, statusCodes.OK);
+  } catch (error) {
+    console.error(error);
+    errorResponse(
+      res,
+      "Internal server error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   getCommunities,
   registerCommunity,
   addSlots,
   getCommunityDetail,
   deleteSlot,
+  getCommunitySlots,
 };
