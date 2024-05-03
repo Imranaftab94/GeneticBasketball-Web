@@ -54,6 +54,7 @@ const getCommunities = asyncHandler(async (req, res) => {
   const offset = (page - 1) * limit;
 
   const communities = await CommunityCenter.find(query)
+    .select("-_location")
     .skip(offset)
     .limit(limit);
 
@@ -154,13 +155,48 @@ const addSlots = asyncHandler(async (req, res) => {
 
   if (!findCommunity) {
     errorResponse(res, "No community center found", statusCodes.NOT_FOUND);
+    return;
   }
 
-  findCommunity.communityTimeSlots = communityTimeSlots;
+  if (communityTimeSlots && communityTimeSlots.length > 0) {
+    communityTimeSlots.forEach((newDay) => {
+      const existingDay = findCommunity.communityTimeSlots.find(
+        (day) => day.day === newDay.day
+      );
+      if (existingDay) {
+        newDay.slots.forEach((newSlot) => {
+          const existingSlot = existingDay.slots.find(
+            (slot) => slot._id.toString() === newSlot._id
+          );
+          if (existingSlot) {
+            // If _id matches an existing slot, update it
+            Object.assign(existingSlot, newSlot);
+          } else {
+            const sameTimeSlot = existingDay.slots.find(
+              (slot) =>
+                slot.startTime === newSlot.startTime &&
+                slot.endTime === newSlot.endTime
+            );
+            if (sameTimeSlot) {
+              // If a slot with the same start and end times exists, update it
+              Object.assign(sameTimeSlot, newSlot);
+            } else {
+              // If no matching slot is found, add the new slot
+              existingDay.slots.push(newSlot);
+            }
+          }
+        });
+      } else {
+        // If the day is not present, add the entire day with its slots
+        findCommunity.communityTimeSlots.push(newDay);
+      }
+    });
+  }
+
   const updatedCommunity = await findCommunity.save();
   delete updatedCommunity._doc._location;
   let data = {
-    message: "Slots have been added successfully!",
+    message: "Slots have been updated/added successfully!",
     community_user: {
       community_id: updatedCommunity._id,
       ...updatedCommunity._doc,

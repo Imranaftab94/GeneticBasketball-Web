@@ -31,7 +31,7 @@ const communityCenterSchema = Joi.object({
 
 //Define Slots schema
 const addSlotsSchema = Joi.object({
-  communityTimeSlots: communityTimeSlotsSchema,
+  communityTimeSlots: Joi.array().required(),
   community_id: Joi.string().required(),
 });
 
