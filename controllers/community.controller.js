@@ -6,6 +6,7 @@ import { statusCodes } from "../constants/statusCodes.constant.js";
 import {
   addSlotsSchema,
   communityCenterSchema,
+  slotBookingSchema,
 } from "../validators/community.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import {
@@ -285,8 +286,8 @@ const deleteSlot = asyncHandler(async (req, res) => {
   }
 });
 
-// @desc    Get Single community based on id
-// @route   GET /api/v1/community/:id
+// @desc    Get community slots and its bookings
+// @route   GET /api/v1/community/:communityCenterId/:date
 // @access  Private
 const getCommunitySlots = asyncHandler(async (req, res) => {
   const { communityCenterId, date } = req.params;
@@ -397,6 +398,87 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Add bookings to slot
+// @route   POST /api/v1/community/slot/addBooking
+// @access  Private
+
+const addBookingToSlot = asyncHandler(async (req, res) => {
+  try {
+    const { error } = slotBookingSchema.validate(req.body);
+    if (error) {
+      errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+      return;
+    }
+    const { communityCenterId, day, slotId, userId, bookingDate } = req.body; // Assuming userId and bookingDate are provided in the request body
+
+    // Find the user
+    const user = await User.findById(userId);
+    if (!user) {
+      return errorResponse(res, "User not found", statusCodes.NOT_FOUND);
+    }
+
+    // Find the community center
+    const communityCenter = await CommunityCenter.findById(
+      communityCenterId
+    ).exec();
+    if (!communityCenter) {
+      return errorResponse(
+        res,
+        "Community Center not found",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    // Find the day within the community center
+    const communityTimeSlots = communityCenter.communityTimeSlots.find(
+      (communitySlot) => communitySlot.day == day
+    );
+    if (!communityTimeSlots) {
+      return errorResponse(res, "Day not found", statusCodes.NOT_FOUND);
+    }
+
+    // Find the slot within the day
+    const slot = communityTimeSlots.slots.find(
+      (slot) => slot._id.toString() === slotId
+    );
+    if (!slot) {
+      return errorResponse(res, "Slot not found", statusCodes.NOT_FOUND);
+    }
+
+    // Check if the slot has already ten bookings for the same date
+    const bookingsForSameDate = slot.bookings.filter(
+      (booking) =>
+        booking.bookingDate.toDateString() ===
+        new Date(bookingDate).toDateString()
+    );
+    if (bookingsForSameDate.length >= 10) {
+      return errorResponse(
+        res,
+        "No more bookings allowed for the same date as limit for the same date has been reached.",
+        statusCodes.BAD_REQUEST
+      );
+    }
+
+    // Add booking with bookedBy user ID and booking date
+    slot.bookings.push({ bookedBy: userId, bookingDate });
+
+    // Save the community center
+    const booked = await communityCenter.save();
+    let data = {
+      message: "Booking has been added successfully.",
+    };
+
+    successResponse(res, data, statusCodes.CREATED);
+  } catch (error) {
+    console.error(error);
+    errorResponse(
+      res,
+      "Internal server error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   getCommunities,
   registerCommunity,
@@ -404,4 +486,5 @@ export {
   getCommunityDetail,
   deleteSlot,
   getCommunitySlots,
+  addBookingToSlot,
 };

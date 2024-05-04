@@ -35,4 +35,13 @@ const addSlotsSchema = Joi.object({
   community_id: Joi.string().required(),
 });
 
-export { communityCenterSchema, addSlotsSchema };
+//Add booking schema
+const slotBookingSchema = Joi.object({
+  communityCenterId: Joi.string().required(),
+  day: Joi.string().required(),
+  slotId: Joi.string().required(),
+  userId: Joi.string().required(),
+  bookingDate: Joi.date().iso().required()
+});
+
+export { communityCenterSchema, addSlotsSchema, slotBookingSchema };
