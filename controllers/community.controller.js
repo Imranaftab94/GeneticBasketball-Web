@@ -302,6 +302,9 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
       );
     }
 
+    const targetDate = new Date(date); // Ensure date is in Date format for consistent comparison
+    const dayOfWeek = getAbbreviatedDayOfWeek(targetDate);
+
     const results = await CommunityCenter.aggregate([
       {
         $match: {
@@ -313,77 +316,111 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
       },
       {
         $match: {
-          "communityTimeSlots.day": getAbbreviatedDayOfWeek(new Date(date)),
+          "communityTimeSlots.day": dayOfWeek,
         },
       },
       {
         $unwind: "$communityTimeSlots.slots",
       },
       {
-        $unwind: {
-          path: "$communityTimeSlots.slots.bookings",
-          preserveNullAndEmptyArrays: true, // Ensure that slots with no bookings are also included
-        },
+        $project: {
+          slotDetails: "$communityTimeSlots.slots",
+          bookings: {
+            $filter: {
+              input: "$communityTimeSlots.slots.bookings",
+              as: "booking",
+              cond: { $eq: ["$$booking.bookingDate", targetDate] }
+            }
+          }
+        }
       },
       {
         $lookup: {
           from: "users",
-          localField: "communityTimeSlots.slots.bookings.bookedBy",
+          localField: "bookings.bookedBy",
           foreignField: "_id",
-          as: "bookedByDetails",
+          as: "bookedByDetails"
         },
       },
       {
         $addFields: {
-          "communityTimeSlots.slots.bookings.bookedBy": {
-            $arrayElemAt: ["$bookedByDetails", 0], // Take the first element from the fetched array
-          },
-        },
+          bookings: {
+            $map: {
+              input: "$bookings",
+              as: "booking",
+              in: {
+                _id: "$$booking._id",
+                createdAt: "$$booking.createdAt",
+                updatedAt: "$$booking.updatedAt",
+                bookingDate: "$$booking.bookingDate",
+                bookedBy: {
+                  $arrayElemAt: [
+                    "$bookedByDetails",
+                    { $indexOfArray: ["$bookedByDetails._id", "$$booking.bookedBy"] }
+                  ]
+                }
+              }
+            }
+          }
+        }
       },
       {
-        $group: {
-          _id: "$communityTimeSlots.slots._id",
-          startTime: { $first: "$communityTimeSlots.slots.startTime" },
-          endTime: { $first: "$communityTimeSlots.slots.endTime" },
-          available: { $first: "$communityTimeSlots.slots.available" },
+        $project: {
+          _id: "$slotDetails._id",
+          startTime: "$slotDetails.startTime",
+          endTime: "$slotDetails.endTime",
+          available: "$slotDetails.available",
+          createdAt: "$slotDetails.createdAt",
+          updatedAt: "$slotDetails.updatedAt",
           bookings: {
-            $push: {
-              $cond: {
-                if: {
-                  $eq: [
-                    { $type: "$communityTimeSlots.slots.bookings._id" },
-                    "missing",
-                  ],
-                },
-                then: "$$REMOVE",
-                else: {
-                  bookingDate: "$communityTimeSlots.slots.bookings.bookingDate",
-                  bookedBy: "$communityTimeSlots.slots.bookings.bookedBy",
-                  _id: "$communityTimeSlots.slots.bookings._id",
-                  createdAt: "$communityTimeSlots.slots.bookings.createdAt",
-                  updatedAt: "$communityTimeSlots.slots.bookings.updatedAt",
-                },
+            $ifNull: [
+              {
+                $map: {
+                  input: "$bookings",
+                  as: "booking",
+                  in: {
+                    bookingId: "$$booking._id",
+                    bookedBy: {
+                      _id: "$$booking.bookedBy._id",
+                      firstName: "$$booking.bookedBy.firstName",
+                      lastName: "$$booking.bookedBy.lastName",
+                      email: "$$booking.bookedBy.email"
+                    }
+                  }
+                }
               },
-            },
-          },
-          createdAt: { $first: "$communityTimeSlots.slots.createdAt" },
-          updatedAt: { $first: "$communityTimeSlots.slots.updatedAt" },
-        },
+              []
+            ]
+          }
+        }
       },
       {
         $group: {
           _id: "$_id",
+          startTime: { $first: "$startTime" },
+          endTime: { $first: "$endTime" },
+          available: { $first: "$available" },
+          bookings: { $first: "$bookings" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+        },
+      },
+      {
+        $group: {
+          _id: null,
           slots: { $push: "$$ROOT" },
         },
       },
     ]);
+    
 
     const response = {
+      bookingDate: new Date(date).toISOString(),
       communityCenter: {
         _id: communityCenter._id,
         name: communityCenter.name,
       },
-      day: getAbbreviatedDayOfWeek(new Date(date)),
+      day: dayOfWeek,
       slots: results.map((item) => item.slots).flat(),
     };
 
@@ -397,6 +434,7 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
     );
   }
 });
+
 
 // @desc    Add bookings to slot
 // @route   POST /api/v1/community/slot/addBooking
