@@ -2,6 +2,7 @@ import express from "express";
 import {
   authUser,
   getUserProfile,
+  logoutFcmToken,
   registerUser,
   resetPassword,
   sendOTP,
@@ -21,6 +22,7 @@ router.route("/profile").get(protect, getUserProfile);
 router.post("/sendOTP", sendOTP);
 router.post("/verifyOTP", verifyOTPCode);
 router.post("/resetPassword", resetPassword);
-router.post("/verifyAccountEmail", verifyAccountEmail)
+router.post("/verifyAccountEmail", verifyAccountEmail);
+router.post("/logout", logoutFcmToken);
 
 export default router;

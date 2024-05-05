@@ -4,6 +4,7 @@ import Joi from "joi";
 export const registerUserSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
+  fcmToken: Joi.string(),
 });
 
 //Apply Validation when updating profile
@@ -31,14 +32,20 @@ export const socailSignUpUserSchema = Joi.object({
   socialPlatform: Joi.string().required(),
 });
 
-// send otp schema 
+// send otp schema
 export const sendOtpSchema = Joi.object({
-  email: Joi.string().email().required()
-})
+  email: Joi.string().email().required(),
+});
 
-// verify otp schema 
+// verify otp schema
 export const verifyOTPSchema = Joi.object({
   email: Joi.string().email().required(),
   otpCode: Joi.string().required(),
-})
- 
+});
+
+//Logout schema
+
+export const logoutFCMTokenSchema = Joi.object({
+  id: Joi.string().required(),
+  fcmToken: Joi.string().required(),
+});

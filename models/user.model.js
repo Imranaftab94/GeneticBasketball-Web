@@ -79,6 +79,7 @@ const userSchema = mongoose.Schema(
     otpCode: {
       type: String,
     },
+    fcmTokens: [String],
   },
   {
     timestamps: true,

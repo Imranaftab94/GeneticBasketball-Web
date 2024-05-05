@@ -4,6 +4,7 @@ import { generateToken } from "../services/generateToken.service.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
+  logoutFCMTokenSchema,
   registerUserSchema,
   sendOtpSchema,
   socailSignUpUserSchema,
@@ -72,7 +73,7 @@ const registerUser = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users/login
 // @access  Public
 const authUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, fcmToken } = req.body;
   // Validate request body
   const { error } = registerUserSchema.validate(req.body);
   if (error) {
@@ -98,6 +99,13 @@ const authUser = asyncHandler(async (req, res) => {
     (await user.matchPassword(password)) &&
     user.role !== Roles.COMMUNITY
   ) {
+    // Check if the fcmToken is provided and not already in the array
+    if (fcmToken && !user.fcmTokens.includes(fcmToken)) {
+      // Add fcmToken to the user's model
+      user.fcmTokens.push(fcmToken);
+      await user.save();
+    }
+
     let data = {
       message: "You have successfully Logged In.",
       user: user._doc,
@@ -110,6 +118,11 @@ const authUser = asyncHandler(async (req, res) => {
     (await user.matchPassword(password)) &&
     user.role === Roles.COMMUNITY
   ) {
+    if (fcmToken && !user.fcmTokens.includes(fcmToken)) {
+      // Add fcmToken to the user's model
+      user.fcmTokens.push(fcmToken);
+      await user.save();
+    }
     let community = await CommunityCenter.findOne({ email });
     if (community) {
       let data = {
@@ -351,6 +364,46 @@ const verifyAccountEmail = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Remove Fcm Token
+// @route   Post /api/v1/users/logout
+// @access  Public
+const logoutFcmToken = asyncHandler(async (req, res) => {
+  const { error } = logoutFCMTokenSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  const { id: userId, fcmToken } = req.body;
+
+  try {
+    // Find the user by email
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return errorResponse(res, "User Not Found.", statusCodes.NOT_FOUND);
+    }
+
+    // Remove the provided FCM token from the array
+    user.fcmTokens = user.fcmTokens.filter((token) => token !== fcmToken);
+
+    // Save the updated user object
+    await user.save();
+
+    return successResponse(
+      res,
+      { message: "You have been logout successfully!" },
+      statusCodes.OK
+    );
+  } catch (error) {
+    return errorResponse(
+      res,
+      "Internal Server Error.",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   registerUser,
   authUser,
@@ -361,4 +414,5 @@ export {
   verifyOTPCode,
   resetPassword,
   verifyAccountEmail,
+  logoutFcmToken,
 };
