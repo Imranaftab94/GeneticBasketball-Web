@@ -517,6 +517,133 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
   }
 });
 
+const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
+  const { communityCenterId, startDate, endDate } = req.query;
+  try {
+    if (!communityCenterId) {
+      return errorResponse(res, "Community center id is required.", statusCodes.NOT_FOUND);
+    }
+    if (!startDate || !endDate) {
+      return errorResponse(res, "Start date / End date is required.", statusCodes.NOT_FOUND);
+    }
+
+    const communityCenter = await CommunityCenter.findById(communityCenterId);
+    if (!communityCenter) {
+      return errorResponse(res, "Community center not found", statusCodes.NOT_FOUND);
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    const results = await CommunityCenter.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(communityCenterId),
+        },
+      },
+      {
+        $unwind: "$communityTimeSlots",
+      },
+      {
+        $unwind: "$communityTimeSlots.slots",
+      },
+      {
+        $project: {
+          slotDetails: "$communityTimeSlots.slots",
+          bookings: {
+            $filter: {
+              input: "$communityTimeSlots.slots.bookings",
+              as: "booking",
+              cond: {
+                $and: [
+                  { $gte: ["$$booking.bookingDate", start] },
+                  { $lte: ["$$booking.bookingDate", end] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $unwind: "$bookings",
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "bookings.bookedBy",
+          foreignField: "_id",
+          as: "bookedByDetails"
+        }
+      },
+      {
+        $addFields: {
+          "bookings.bookedBy": {
+            $arrayElemAt: ["$bookedByDetails", 0]
+          },
+          "bookings.bookingDay": {
+            $dayOfWeek: "$bookings.bookingDate"
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            bookingDate: "$bookings.bookingDate",
+            startTime: "$slotDetails.startTime",
+            endTime: "$slotDetails.endTime"
+          },
+          bookingDay: { $first: { $arrayElemAt: [ ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], "$bookings.bookingDay"] } },
+          available: { $first: "$slotDetails.available" },
+          createdAt: { $first: "$slotDetails.createdAt" },
+          updatedAt: { $first: "$slotDetails.updatedAt" },
+          players: {
+            $push: {
+              bookingId: "$bookings._id",
+              bookedBy: {
+                _id: "$bookings.bookedBy._id",
+                firstName: "$bookings.bookedBy.firstName",
+                lastName: "$bookings.bookedBy.lastName",
+                email: "$bookings.bookedBy.email"
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          bookingDate: "$_id.bookingDate",
+          startTime: "$_id.startTime",
+          endTime: "$_id.endTime",
+          bookingDay: 1,
+          available: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          players: 1
+        }
+      }
+    ]);
+
+    const response = {
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      communityCenter: {
+        _id: communityCenter._id,
+        name: communityCenter.name,
+      },
+      bookings: results
+    };
+
+    successResponse(res, response, statusCodes.OK);
+  } catch (error) {
+    console.error(error);
+    errorResponse(res, "Internal server error", statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+
+
+
 export {
   getCommunities,
   registerCommunity,
@@ -525,4 +652,5 @@ export {
   deleteSlot,
   getCommunitySlots,
   addBookingToSlot,
+  getCommunitySlotsBasedonDateRange
 };
