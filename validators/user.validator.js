@@ -30,6 +30,7 @@ export const socailSignUpUserSchema = Joi.object({
   name: Joi.string().required(),
   socialId: Joi.string().required(),
   socialPlatform: Joi.string().required(),
+  fcmToken: Joi.string()
 });
 
 // send otp schema

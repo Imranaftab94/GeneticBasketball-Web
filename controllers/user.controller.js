@@ -26,7 +26,7 @@ import { CommunityCenter } from "../models/community.model.js";
 // @route   POST /api/v1/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  
 
   // Validate request body
   const { error } = registerUserSchema.validate(req.body);
@@ -34,7 +34,7 @@ const registerUser = asyncHandler(async (req, res) => {
     errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     return;
   }
-
+  const { email, password, fcmToken } = req.body;
   const userExists = await User.findOne({ email });
 
   if (userExists) {
@@ -51,6 +51,7 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     otpCode,
+    fcmTokens: fcmToken ? [fcmToken] : []
   });
 
   delete user._doc.otpCode;
@@ -184,7 +185,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users/socialAuth
 // @access  Public
 const socialAuth = asyncHandler(async (req, res) => {
-  const { socialId, socialPlatform, email, name } = req.body;
+  const { socialId, socialPlatform, email, name, fcmToken } = req.body;
 
   // Validate request body
   const { error } = socailSignUpUserSchema.validate(req.body);
@@ -204,6 +205,12 @@ const socialAuth = asyncHandler(async (req, res) => {
       statusCodes.BAD_REQUEST
     );
   } else if (userExists && userExists.socialId) {
+    if (fcmToken && !userExists.fcmTokens.includes(fcmToken)) {
+      // Add fcmToken to the user's model
+      userExists.fcmTokens.push(fcmToken);
+      await userExists.save();
+    }
+    
     let data = {
       message: "You have successfully Logged In.",
       user: userExists,
@@ -218,6 +225,7 @@ const socialAuth = asyncHandler(async (req, res) => {
       socialId,
       socialPlatform,
       isEmailVerified: true,
+      fcmTokens: fcmToken ? [fcmToken] : []
     });
 
     if (user) {
