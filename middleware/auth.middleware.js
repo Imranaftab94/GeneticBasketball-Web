@@ -51,4 +51,16 @@ const admin = (req, res, next) => {
   }
 };
 
-export { protect, admin };
+const adminAndCommunity = (req, res, next) => {
+  if (req.user && (req.user.role === Roles.ADMIN || req.user.role === Roles.COMMUNITY)) {
+    next();
+  } else {
+    errorResponse(
+        res,
+        "Not Authorized as an Admin/Community",
+        statusCodes.UNAUTHORIZED
+      );
+  }
+};
+
+export { protect, admin, adminAndCommunity };

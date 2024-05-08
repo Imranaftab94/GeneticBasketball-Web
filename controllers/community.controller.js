@@ -592,7 +592,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
             startTime: "$slotDetails.startTime",
             endTime: "$slotDetails.endTime"
           },
-          bookingDay: { $first: { $arrayElemAt: [ ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], "$bookings.bookingDay"] } },
+          bookingDay: { $first: { $arrayElemAt: [ ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], { $subtract: ["$bookings.bookingDay", 1] } ] } },
           available: { $first: "$slotDetails.available" },
           createdAt: { $first: "$slotDetails.createdAt" },
           updatedAt: { $first: "$slotDetails.updatedAt" },
@@ -603,7 +603,8 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 _id: "$bookings.bookedBy._id",
                 firstName: "$bookings.bookedBy.firstName",
                 lastName: "$bookings.bookedBy.lastName",
-                email: "$bookings.bookedBy.email"
+                email: "$bookings.bookedBy.email",
+                profilePhoto:"$bookings.bookedBy.profilePhoto"
               }
             }
           }
