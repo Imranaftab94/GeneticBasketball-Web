@@ -26,8 +26,6 @@ import { CommunityCenter } from "../models/community.model.js";
 // @route   POST /api/v1/users/register
 // @access  Public
 const registerUser = asyncHandler(async (req, res) => {
-  
-
   // Validate request body
   const { error } = registerUserSchema.validate(req.body);
   if (error) {
@@ -51,7 +49,7 @@ const registerUser = asyncHandler(async (req, res) => {
     email,
     password,
     otpCode,
-    fcmTokens: fcmToken ? [fcmToken] : []
+    fcmTokens: fcmToken ? [fcmToken] : [],
   });
 
   delete user._doc.otpCode;
@@ -210,7 +208,7 @@ const socialAuth = asyncHandler(async (req, res) => {
       userExists.fcmTokens.push(fcmToken);
       await userExists.save();
     }
-    
+
     let data = {
       message: "You have successfully Logged In.",
       user: userExists,
@@ -225,7 +223,7 @@ const socialAuth = asyncHandler(async (req, res) => {
       socialId,
       socialPlatform,
       isEmailVerified: true,
-      fcmTokens: fcmToken ? [fcmToken] : []
+      fcmTokens: fcmToken ? [fcmToken] : [],
     });
 
     if (user) {
@@ -412,6 +410,29 @@ const logoutFcmToken = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Register a new user
+// @route   POST /api/v1/users/deleteAccount
+// @access  Private
+const deletUserAccount = asyncHandler(async (req, res) => {
+  try {
+    const result = await User.findByIdAndDelete(req.user._id);
+    if (!result) {
+      return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
+    }
+
+    successResponse(
+      res,
+      { message: "User deleted successfully" },
+      statusCodes.OK
+    );
+  } catch (error) {
+    return errorResponse(
+      res,
+      "Internal server error.",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
 export {
   registerUser,
   authUser,
@@ -423,4 +444,5 @@ export {
   resetPassword,
   verifyAccountEmail,
   logoutFcmToken,
+  deletUserAccount,
 };

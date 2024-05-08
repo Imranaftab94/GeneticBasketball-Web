@@ -1,6 +1,7 @@
 import express from "express";
 import {
   authUser,
+  deletUserAccount,
   getUserProfile,
   logoutFcmToken,
   registerUser,
@@ -24,5 +25,6 @@ router.post("/verifyOTP", verifyOTPCode);
 router.post("/resetPassword", resetPassword);
 router.post("/verifyAccountEmail", verifyAccountEmail);
 router.post("/logout", logoutFcmToken);
+router.route("/deleteAccount").delete(protect, deletUserAccount);
 
 export default router;
