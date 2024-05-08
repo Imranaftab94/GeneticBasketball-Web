@@ -415,16 +415,20 @@ const logoutFcmToken = asyncHandler(async (req, res) => {
 // @access  Private
 const deletUserAccount = asyncHandler(async (req, res) => {
   try {
-    const result = await User.findByIdAndDelete(req.user._id);
-    if (!result) {
-      return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
-    }
+    if (!req.user) {
+      return errorResponse(res, "User is required.", statusCodes.BAD_REQUEST);
+    } else {
+      const result = await User.findByIdAndDelete(req.user._id);
+      if (!result) {
+        return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
+      }
 
-    successResponse(
-      res,
-      { message: "User deleted successfully" },
-      statusCodes.OK
-    );
+      successResponse(
+        res,
+        { message: "User deleted successfully" },
+        statusCodes.OK
+      );
+    }
   } catch (error) {
     return errorResponse(
       res,
