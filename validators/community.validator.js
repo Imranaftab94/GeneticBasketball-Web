@@ -42,7 +42,26 @@ const slotBookingSchema = Joi.object({
   day: Joi.string().required(),
   slotId: Joi.string().required(),
   userId: Joi.string().required(),
-  bookingDate: Joi.date().iso().required()
+  bookingDate: Joi.date().iso().required(),
 });
 
-export { communityCenterSchema, addSlotsSchema, slotBookingSchema };
+//update community center
+const updateCommunityCenterSchema = Joi.object({
+  id: Joi.string().required(),
+  name: Joi.string(),
+  image: Joi.string(),
+  location: Joi.object({
+    latitude: Joi.number(),
+    longitude: Joi.number(),
+  }),
+  address: Joi.string(),
+  description: Joi.string(),
+  price: Joi.number().integer().min(1),
+});
+
+export {
+  communityCenterSchema,
+  addSlotsSchema,
+  slotBookingSchema,
+  updateCommunityCenterSchema,
+};

@@ -9,6 +9,7 @@ import {
   getCommunitySlots,
   getCommunitySlotsBasedonDateRange,
   registerCommunity,
+  updateCommunityCenter,
 } from "../controllers/community.controller.js";
 const router = express.Router();
 
@@ -20,5 +21,6 @@ router.route("/:communityId/slot/:slotId").delete(protect, admin, deleteSlot);
 router.route('/:communityCenterId/bookings/:date').get(protect, getCommunitySlots);
 router.route('/slot/addBooking').post(protect, addBookingToSlot);
 router.route('/slots/slotsBasedonDate').get(protect, getCommunitySlotsBasedonDateRange);
+router.route("/update").put(protect, adminAndCommunity, updateCommunityCenter);
 
 export default router;

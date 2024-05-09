@@ -7,6 +7,7 @@ import {
   addSlotsSchema,
   communityCenterSchema,
   slotBookingSchema,
+  updateCommunityCenterSchema,
 } from "../validators/community.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import {
@@ -85,8 +86,16 @@ const registerCommunity = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { name, email, image, location, address, password, description, price } =
-    req.body;
+  const {
+    name,
+    email,
+    image,
+    location,
+    address,
+    password,
+    description,
+    price,
+  } = req.body;
 
   const userExists = await User.findOne({ email });
 
@@ -330,17 +339,17 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
             $filter: {
               input: "$communityTimeSlots.slots.bookings",
               as: "booking",
-              cond: { $eq: ["$$booking.bookingDate", targetDate] }
-            }
-          }
-        }
+              cond: { $eq: ["$$booking.bookingDate", targetDate] },
+            },
+          },
+        },
       },
       {
         $lookup: {
           from: "users",
           localField: "bookings.bookedBy",
           foreignField: "_id",
-          as: "bookedByDetails"
+          as: "bookedByDetails",
         },
       },
       {
@@ -357,13 +366,18 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
                 bookedBy: {
                   $arrayElemAt: [
                     "$bookedByDetails",
-                    { $indexOfArray: ["$bookedByDetails._id", "$$booking.bookedBy"] }
-                  ]
-                }
-              }
-            }
-          }
-        }
+                    {
+                      $indexOfArray: [
+                        "$bookedByDetails._id",
+                        "$$booking.bookedBy",
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
       },
       {
         $project: {
@@ -385,15 +399,15 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
                       _id: "$$booking.bookedBy._id",
                       firstName: "$$booking.bookedBy.firstName",
                       lastName: "$$booking.bookedBy.lastName",
-                      email: "$$booking.bookedBy.email"
-                    }
-                  }
-                }
+                      email: "$$booking.bookedBy.email",
+                    },
+                  },
+                },
               },
-              []
-            ]
-          }
-        }
+              [],
+            ],
+          },
+        },
       },
       {
         $group: {
@@ -413,7 +427,6 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
         },
       },
     ]);
-    
 
     const response = {
       bookingDate: new Date(date).toISOString(),
@@ -435,7 +448,6 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
     );
   }
 });
-
 
 // @desc    Add bookings to slot
 // @route   POST /api/v1/community/slot/addBooking
@@ -522,15 +534,27 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
   const { communityCenterId, startDate, endDate } = req.query;
   try {
     if (!communityCenterId) {
-      return errorResponse(res, "Community center id is required.", statusCodes.NOT_FOUND);
+      return errorResponse(
+        res,
+        "Community center id is required.",
+        statusCodes.NOT_FOUND
+      );
     }
     if (!startDate || !endDate) {
-      return errorResponse(res, "Start date / End date is required.", statusCodes.NOT_FOUND);
+      return errorResponse(
+        res,
+        "Start date / End date is required.",
+        statusCodes.NOT_FOUND
+      );
     }
 
     const communityCenter = await CommunityCenter.findById(communityCenterId);
     if (!communityCenter) {
-      return errorResponse(res, "Community center not found", statusCodes.NOT_FOUND);
+      return errorResponse(
+        res,
+        "Community center not found",
+        statusCodes.NOT_FOUND
+      );
     }
 
     const start = new Date(startDate);
@@ -558,12 +582,12 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
               cond: {
                 $and: [
                   { $gte: ["$$booking.bookingDate", start] },
-                  { $lte: ["$$booking.bookingDate", end] }
-                ]
-              }
-            }
-          }
-        }
+                  { $lte: ["$$booking.bookingDate", end] },
+                ],
+              },
+            },
+          },
+        },
       },
       {
         $unwind: "$bookings",
@@ -573,27 +597,34 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
           from: "users",
           localField: "bookings.bookedBy",
           foreignField: "_id",
-          as: "bookedByDetails"
-        }
+          as: "bookedByDetails",
+        },
       },
       {
         $addFields: {
           "bookings.bookedBy": {
-            $arrayElemAt: ["$bookedByDetails", 0]
+            $arrayElemAt: ["$bookedByDetails", 0],
           },
           "bookings.bookingDay": {
-            $dayOfWeek: "$bookings.bookingDate"
-          }
-        }
+            $dayOfWeek: "$bookings.bookingDate",
+          },
+        },
       },
       {
         $group: {
           _id: {
             bookingDate: "$bookings.bookingDate",
             startTime: "$slotDetails.startTime",
-            endTime: "$slotDetails.endTime"
+            endTime: "$slotDetails.endTime",
           },
-          bookingDay: { $first: { $arrayElemAt: [ ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], { $subtract: ["$bookings.bookingDay", 1] } ] } },
+          bookingDay: {
+            $first: {
+              $arrayElemAt: [
+                ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+                { $subtract: ["$bookings.bookingDay", 1] },
+              ],
+            },
+          },
           available: { $first: "$slotDetails.available" },
           createdAt: { $first: "$slotDetails.createdAt" },
           updatedAt: { $first: "$slotDetails.updatedAt" },
@@ -605,11 +636,12 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 firstName: "$bookings.bookedBy.firstName",
                 lastName: "$bookings.bookedBy.lastName",
                 email: "$bookings.bookedBy.email",
-                profilePhoto:"$bookings.bookedBy.profilePhoto"
-              }
-            }
-          }
-        }
+                profilePhoto: "$bookings.bookedBy.profilePhoto",
+                coins: "$bookings.bookedBy.coins"
+              },
+            },
+          },
+        },
       },
       {
         $project: {
@@ -621,9 +653,9 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
           available: 1,
           createdAt: 1,
           updatedAt: 1,
-          players: 1
-        }
-      }
+          players: 1,
+        },
+      },
     ]);
 
     const response = {
@@ -632,19 +664,60 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
       communityCenter: {
         _id: communityCenter._id,
         name: communityCenter.name,
+        price: communityCenter.price,
       },
-      bookings: results
+      bookings: results,
     };
 
     successResponse(res, response, statusCodes.OK);
   } catch (error) {
     console.error(error);
-    errorResponse(res, "Internal server error", statusCodes.INTERNAL_SERVER_ERROR);
+    errorResponse(
+      res,
+      "Internal server error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
   }
 });
 
+const updateCommunityCenter = asyncHandler(async (req, res) => {
+  const { error } = updateCommunityCenterSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
+  let id = req.body.id;
+  delete req.body.id;
+  let coordinates = [req.body.location.longitude, req.body.location.latitude];
+  let _location = {
+    type: "Point",
+    coordinates,
+  };
+  req.body._location = _location;
 
+  try {
+    const updatedCommunityCenter = await CommunityCenter.findByIdAndUpdate(
+      id,
+      { $set: req.body },
+      { new: true, runValidators: true,  select: { "_location": 0, "communityTimeSlots": 0 } } // This returns the updated object and ensures validators run
+    )
 
+    if (!updatedCommunityCenter) {
+      return errorResponse(
+        res,
+        "Community center not found",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    let data = {
+      message: "Community center updated successfully.",
+      updateCommunity: updatedCommunityCenter,
+    };
+    successResponse(res, data, statusCodes.OK);
+  } catch (err) {
+    errorResponse(error.message, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
 
 export {
   getCommunities,
@@ -654,5 +727,6 @@ export {
   deleteSlot,
   getCommunitySlots,
   addBookingToSlot,
-  getCommunitySlotsBasedonDateRange
+  getCommunitySlotsBasedonDateRange,
+  updateCommunityCenter,
 };
