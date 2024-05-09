@@ -4,7 +4,7 @@ import Joi from "joi";
 export const registerUserSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
-  fcmToken: Joi.string().allow('', null),
+  fcmToken: Joi.string().allow("", null),
 });
 
 //Apply Validation when updating profile
@@ -30,7 +30,7 @@ export const socailSignUpUserSchema = Joi.object({
   name: Joi.string().required(),
   socialId: Joi.string().required(),
   socialPlatform: Joi.string().required(),
-  fcmToken: Joi.string()
+  fcmToken: Joi.string(),
 });
 
 // send otp schema
@@ -49,4 +49,12 @@ export const verifyOTPSchema = Joi.object({
 export const logoutFCMTokenSchema = Joi.object({
   id: Joi.string().required(),
   fcmToken: Joi.string().required(),
+});
+
+//add coins schema
+export const coinTransactionSchema = Joi.object({
+  inapp_id: Joi.string().allow("", null), // Allow empty string or null, but it should be a string
+  platform: Joi.string().required(), // Platform must be a non-empty string
+  coins_value: Joi.number().integer().min(1).required(), // coins_value should be a positive integer
+  payment_id: Joi.string().allow("", null), // Payment ID can be empty or null, but must be a string if provided
 });

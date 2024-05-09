@@ -85,7 +85,7 @@ const registerCommunity = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { name, email, image, location, address, password, description } =
+  const { name, email, image, location, address, password, description, price } =
     req.body;
 
   const userExists = await User.findOne({ email });
@@ -120,6 +120,7 @@ const registerCommunity = asyncHandler(async (req, res) => {
       description,
       _location,
       location,
+      price,
       community_user: user._id,
     });
     delete communityUser._doc._location;

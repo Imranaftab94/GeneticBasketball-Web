@@ -95,6 +95,10 @@ const communityCenterSchema = new Schema(
     description: {
       type: String,
     },
+    price:{
+      type: Number,
+      default: 0,
+    },
     communityTimeSlots: [communityTimeSlotSchema],
     community_user: {
       type: Schema.Types.ObjectId,

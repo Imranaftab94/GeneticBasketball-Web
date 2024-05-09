@@ -27,6 +27,7 @@ const communityCenterSchema = Joi.object({
   address: Joi.string().required(),
   password: Joi.string().required(),
   description: Joi.string(),
+  price: Joi.number().integer().min(1).required(),
 });
 
 //Define Slots schema

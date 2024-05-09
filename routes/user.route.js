@@ -1,5 +1,6 @@
 import express from "express";
 import {
+  addTopUpCoins,
   authUser,
   deletUserAccount,
   getUserProfile,
@@ -26,5 +27,6 @@ router.post("/resetPassword", resetPassword);
 router.post("/verifyAccountEmail", verifyAccountEmail);
 router.post("/logout", logoutFcmToken);
 router.route("/deleteAccount").delete(protect, deletUserAccount);
+router.route('/addCoinsTopup').post(protect, addTopUpCoins)
 
 export default router;

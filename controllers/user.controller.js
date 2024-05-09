@@ -4,6 +4,7 @@ import { generateToken } from "../services/generateToken.service.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
+  coinTransactionSchema,
   logoutFCMTokenSchema,
   registerUserSchema,
   sendOtpSchema,
@@ -21,6 +22,7 @@ import {
 } from "../services/email.service.js";
 import { Roles } from "../constants/role.constant.js";
 import { CommunityCenter } from "../models/community.model.js";
+import { Coins_History } from "../models/coins_history.model.js";
 
 // @desc    Register a new user
 // @route   POST /api/v1/users/register
@@ -437,6 +439,55 @@ const deletUserAccount = asyncHandler(async (req, res) => {
     );
   }
 });
+
+// @desc    Add coins top up
+// @route   POST /api/v1/users/addCoinsTopup
+// @access  Private
+const addTopUpCoins = asyncHandler(async (req, res) => {
+  const { error } = coinTransactionSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+  const { inapp_id, platform, coins_value, payment_id } = req.body;
+  console.log("Req", req.user);
+
+  try {
+    // Find the user by ID
+    const foundUser = await User.findById(req.user._id).select("-fcmTokens");
+    if (!foundUser) {
+      return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
+    }
+
+    // Increment the coins in the user's account
+    foundUser.coins += coins_value;
+    await foundUser.save();
+
+    // Log the transaction in the Coins_History collection
+    const newTransaction = new Coins_History({
+      user: req.user._id,
+      inapp_id,
+      platform,
+      coins_value,
+      payment_id,
+    });
+    await newTransaction.save();
+    let data = {
+      message: "Coin transaction recorded successfully.",
+      user: foundUser,
+      token: generateToken(foundUser._id),
+    };
+    successResponse(res, data, statusCodes.CREATED);
+  } catch (error) {
+    console.error("Error in addTopUpCoins:", error);
+    errorResponse(
+      res,
+      "Internal server error.",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   registerUser,
   authUser,
@@ -449,4 +500,5 @@ export {
   verifyAccountEmail,
   logoutFcmToken,
   deletUserAccount,
+  addTopUpCoins,
 };
