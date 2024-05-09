@@ -57,7 +57,7 @@ const getCommunities = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalCount / limit);
   const offset = (page - 1) * limit;
 
-  const communities = await CommunityCenter.find(query)
+  const communities = await CommunityCenter.find(query).select("-communityTimeSlots")
     .select("-_location")
     .skip(offset)
     .limit(limit);
@@ -400,6 +400,7 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
                       firstName: "$$booking.bookedBy.firstName",
                       lastName: "$$booking.bookedBy.lastName",
                       email: "$$booking.bookedBy.email",
+                      coins: "$$booking.bookedBy.coins"
                     },
                   },
                 },
@@ -433,6 +434,7 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
       communityCenter: {
         _id: communityCenter._id,
         name: communityCenter.name,
+        price: communityCenter.price,
       },
       day: dayOfWeek,
       slots: results.map((item) => item.slots).flat(),
