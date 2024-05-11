@@ -28,10 +28,6 @@ const slotSchema = new Schema(
       type: String,
       required: true,
     },
-    available: {
-      type: Boolean,
-      default: true, // Default value for available
-    },
     bookings: [bookingSchema],
   },
   {
