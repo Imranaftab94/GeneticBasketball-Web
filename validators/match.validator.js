@@ -1,4 +1,5 @@
 import Joi from "joi";
+import { MatchStatus } from "../constants/match-status.constant.js";
 
 const playerSchema = Joi.object({
   user: Joi.string().required(),
@@ -17,3 +18,8 @@ export const matchSchemaValidator = Joi.object({
   team_A: Joi.array().items(playerSchema).length(5).required(),
   team_B: Joi.array().items(playerSchema).length(5).required(),
 }).options({ abortEarly: false });
+
+export const updateMatchStatusSchema = Joi.object({
+    id: Joi.string().required(),
+    status: Joi.string().valid(...Object.values(MatchStatus)).required()
+})

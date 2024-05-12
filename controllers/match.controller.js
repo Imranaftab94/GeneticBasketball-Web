@@ -2,11 +2,15 @@ import asyncHandler from "express-async-handler";
 import { User } from "../models/user.model.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
-import { matchSchemaValidator } from "../validators/match.validator.js";
+import { matchSchemaValidator, updateMatchStatusSchema } from "../validators/match.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Matches } from "../models/matches.model.js";
-import { modifyBookingStatus } from "../services/event-loop-functions.service.js";
+import {
+  modifyBookingStatus,
+  sendMatchStartPaymentInfo,
+} from "../services/event-loop-functions.service.js";
 import mongoose from "mongoose";
+import { MatchStatus } from "../constants/match-status.constant.js";
 
 const createMatch = asyncHandler(async (req, res) => {
   const { error } = matchSchemaValidator.validate(req.body);
@@ -351,4 +355,54 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
   }
 });
 
-export { createMatch, getMatchesBasedonUser, getMatchesBasedonCommunity };
+const changeMatchStatus = asyncHandler(async (req, res) => {
+  try {
+    const { error } = updateMatchStatusSchema.validate(req.body);
+    if (error) {
+      return errorResponse(
+        res,
+        error.details[0].message,
+        statusCodes.BAD_REQUEST
+      );
+    }
+
+    const { id, status } = req.body;
+
+    // Find the match by ID
+    const match = await Matches.findById(id);
+
+    if (!match) {
+      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+    }
+
+    // Update the match status using the schema method
+    match.status = status;
+    await match.save();
+
+    let data = { message: "Match status updated successfully.", match };
+    setTimeout(() => {
+      if (status === MatchStatus.ONGOING) {
+        sendMatchStartPaymentInfo(
+          match.community_center,
+          match.startTime,
+          match.endTime,
+          match.match_date
+        );
+      }
+    }, 3000);
+    successResponse(res, data, statusCodes.OK);
+  } catch (error) {
+    return errorResponse(
+      res,
+      "Internal Server Error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+export {
+  createMatch,
+  getMatchesBasedonUser,
+  getMatchesBasedonCommunity,
+  changeMatchStatus,
+};
