@@ -450,18 +450,15 @@ const addTopUpCoins = asyncHandler(async (req, res) => {
     return;
   }
   const { inapp_id, platform, coins_value, payment_id } = req.body;
-  console.log("Req", req.user);
 
   try {
     // Find the user by ID
-    const foundUser = await User.findById(req.user._id).select("-fcmTokens");
+    const foundUser = await User.findByIdAndUpdate(req.user._id, { $inc: { coins: coins_value } }, { new: true }).select("-fcmTokens");
     if (!foundUser) {
       return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
     }
 
     // Increment the coins in the user's account
-    foundUser.coins += coins_value;
-    await foundUser.save();
 
     // Log the transaction in the Coins_History collection
     const newTransaction = new Coins_History({
