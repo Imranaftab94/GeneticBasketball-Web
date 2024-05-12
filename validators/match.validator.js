@@ -2,6 +2,8 @@ import Joi from "joi";
 
 const playerSchema = Joi.object({
   user: Joi.string().required(),
+  bookingId: Joi.string().required(),
+
 });
 
 export const matchSchemaValidator = Joi.object({

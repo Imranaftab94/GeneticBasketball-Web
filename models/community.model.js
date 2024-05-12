@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { BookingStatus } from "../constants/common.constant.js";
 const Schema = mongoose.Schema;
 
 // Define Booking Schema
@@ -10,6 +11,10 @@ const bookingSchema = new Schema(
     bookedBy: {
       type: Schema.Types.ObjectId,
       ref: "User",
+    },
+    status: {
+      type: String,
+      default: BookingStatus.PENDING,
     },
   },
   {
@@ -91,7 +96,7 @@ const communityCenterSchema = new Schema(
     description: {
       type: String,
     },
-    price:{
+    price: {
       type: Number,
       default: 0,
     },

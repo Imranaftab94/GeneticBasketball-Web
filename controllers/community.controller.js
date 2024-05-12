@@ -633,6 +633,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
           players: {
             $push: {
               bookingId: "$bookings._id",
+              status: "$bookings.status",
               bookedBy: {
                 _id: "$bookings.bookedBy._id",
                 firstName: "$bookings.bookedBy.firstName",

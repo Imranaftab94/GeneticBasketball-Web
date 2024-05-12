@@ -1,6 +1,6 @@
 const MatchStatus = {
   UPCOMING: "Upcoming",
-  LIVE: "Live",
+  ONGOING: "Ongoing",
   FINISHED: "Finished",
   DELAYED: "Delayed",
   CANCELLED: "Cancelled",

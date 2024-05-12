@@ -35,6 +35,9 @@ const matcheSchema = new mongoose.Schema(
           ref: "User",
           required: true,
         },
+        bookingId: {
+          type: String
+        },
         player_score: {
           type: Number,
           default: null,
@@ -67,6 +70,10 @@ const matcheSchema = new mongoose.Schema(
         type: String,
         default: null,
       },
+    },
+    created_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
     },
   },
   {
