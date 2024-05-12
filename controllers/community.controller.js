@@ -482,6 +482,14 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
       );
     }
 
+    if (user.coins < communityCenter.price) {
+      return errorResponse(
+        res,
+        "You have'nt enough balance to book this slot.",
+        statusCodes.BAD_REQUEST
+      );
+    }
+
     // Find the day within the community center
     const communityTimeSlots = communityCenter.communityTimeSlots.find(
       (communitySlot) => communitySlot.day == day
@@ -517,6 +525,8 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
 
     // Save the community center
     const booked = await communityCenter.save();
+    user.coins = user.coins - communityCenter.price;
+    await user.save();
     let data = {
       message: "Booking has been added successfully.",
     };
