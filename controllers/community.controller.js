@@ -465,7 +465,7 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
     const { communityCenterId, day, slotId, userId, bookingDate } = req.body; // Assuming userId and bookingDate are provided in the request body
 
     // Find the user
-    const user = await User.findById(userId);
+    const user = await User.findById(userId).select("-password, -fcmTokens");
     if (!user) {
       return errorResponse(res, "User not found", statusCodes.NOT_FOUND);
     }
@@ -529,6 +529,7 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
     await user.save();
     let data = {
       message: "Booking has been added successfully.",
+      player: user
     };
 
     successResponse(res, data, statusCodes.CREATED);
