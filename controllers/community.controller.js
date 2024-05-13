@@ -57,7 +57,8 @@ const getCommunities = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalCount / limit);
   const offset = (page - 1) * limit;
 
-  const communities = await CommunityCenter.find(query).select("-communityTimeSlots")
+  const communities = await CommunityCenter.find(query)
+    .select("-communityTimeSlots")
     .select("-_location")
     .skip(offset)
     .limit(limit);
@@ -400,7 +401,7 @@ const getCommunitySlots = asyncHandler(async (req, res) => {
                       firstName: "$$booking.bookedBy.firstName",
                       lastName: "$$booking.bookedBy.lastName",
                       email: "$$booking.bookedBy.email",
-                      coins: "$$booking.bookedBy.coins"
+                      coins: "$$booking.bookedBy.coins",
                     },
                   },
                 },
@@ -529,7 +530,7 @@ const addBookingToSlot = asyncHandler(async (req, res) => {
     await user.save();
     let data = {
       message: "Booking has been added successfully.",
-      player: user
+      player: user,
     };
 
     successResponse(res, data, statusCodes.CREATED);
@@ -651,7 +652,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 lastName: "$bookings.bookedBy.lastName",
                 email: "$bookings.bookedBy.email",
                 profilePhoto: "$bookings.bookedBy.profilePhoto",
-                coins: "$bookings.bookedBy.coins"
+                coins: "$bookings.bookedBy.coins",
               },
             },
           },
@@ -712,8 +713,12 @@ const updateCommunityCenter = asyncHandler(async (req, res) => {
     const updatedCommunityCenter = await CommunityCenter.findByIdAndUpdate(
       id,
       { $set: req.body },
-      { new: true, runValidators: true,  select: { "_location": 0, "communityTimeSlots": 0 } } // This returns the updated object and ensures validators run
-    )
+      {
+        new: true,
+        runValidators: true,
+        select: { _location: 0, communityTimeSlots: 0 },
+      } // This returns the updated object and ensures validators run
+    );
 
     if (!updatedCommunityCenter) {
       return errorResponse(
@@ -733,6 +738,61 @@ const updateCommunityCenter = asyncHandler(async (req, res) => {
   }
 });
 
+const getMyBookings = asyncHandler(async (req, res) => {
+  try {
+    const currentDate = new Date();
+    const userId = req.user._id.toString();
+
+    const communityCenters = await CommunityCenter.find({});
+
+    const bookings = communityCenters.reduce((acc, center) => {
+      center.communityTimeSlots.forEach((slot) => {
+        slot.slots.forEach((slotItem) => {
+          const filteredBookings = slotItem.bookings.filter(
+            (booking) =>
+              booking.bookedBy.toString() === userId &&
+              booking.status === "Pending" &&
+              booking.bookingDate >= currentDate
+          );
+
+          acc.push(
+            ...filteredBookings.map((booking) => ({
+              day: slot.day,
+              startTime: slotItem.startTime,
+              endTime: slotItem.endTime,
+              bookingDate: booking.bookingDate,
+              status: booking.status,
+              communityCenter: {
+                name: center.name,
+                email: center.email,
+                image: center.image,
+                address: center.address,
+                description: center.description,
+                price: center.price,
+              },
+            }))
+          );
+        });
+      });
+
+      return acc;
+    }, []);
+
+    const response = {
+      future_bookings: bookings,
+    };
+
+    successResponse(res, response, statusCodes.OK);
+  } catch (error) {
+    console.error(error);
+    errorResponse(
+      res,
+      "Internal server error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   getCommunities,
   registerCommunity,
@@ -743,4 +803,5 @@ export {
   addBookingToSlot,
   getCommunitySlotsBasedonDateRange,
   updateCommunityCenter,
+  getMyBookings,
 };

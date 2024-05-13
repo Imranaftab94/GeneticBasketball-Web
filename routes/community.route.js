@@ -8,6 +8,7 @@ import {
   getCommunityDetail,
   getCommunitySlots,
   getCommunitySlotsBasedonDateRange,
+  getMyBookings,
   registerCommunity,
   updateCommunityCenter,
 } from "../controllers/community.controller.js";
@@ -22,5 +23,6 @@ router.route('/:communityCenterId/bookings/:date').get(protect, getCommunitySlot
 router.route('/slot/addBooking').post(protect, addBookingToSlot);
 router.route('/slots/slotsBasedonDate').get(protect, getCommunitySlotsBasedonDateRange);
 router.route("/update").put(protect, adminAndCommunity, updateCommunityCenter);
+router.route('/slot/myBookings').get(protect, getMyBookings);
 
 export default router;
