@@ -452,21 +452,128 @@ const changeMatchStatus = asyncHandler(async (req, res) => {
 const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
     try {
       // Retrieve matches where the user is in team_A or team_B
-      const matches = await Matches.find({
-      })
-      .populate({
-        path: 'community_center',
-        select: 'name email address description'
-      })
-      .populate({
-        path: 'team_A.user',
-        select: 'firstName lastName email profilePhoto'
-      })
-      .populate({
-        path: 'team_B.user',
-        select: 'firstName lastName email profilePhoto'
-      })
-      .exec();
+      const matches = await Matches.aggregate([
+        {
+          $lookup: {
+            from: "communitycenters",
+            localField: "community_center",
+            foreignField: "_id",
+            as: "community_center",
+          },
+        },
+        { $unwind: "$community_center" },
+        {
+          $addFields: {
+            allBookingIds: {
+              $setUnion: [
+                { $map: { input: "$team_A", as: "a", in: "$$a.bookingId" } },
+                { $map: { input: "$team_B", as: "b", in: "$$b.bookingId" } },
+              ],
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "team_A.user",
+            foreignField: "_id",
+            as: "team_A_users",
+          },
+        },
+        {
+          $lookup: {
+            from: "users",
+            localField: "team_B.user",
+            foreignField: "_id",
+            as: "team_B_users",
+          },
+        },
+        {
+          $project: {
+            community_center: {
+              name: 1,
+              email: 1,
+              address: 1,
+              description: 1,
+            },
+            match_date: 1,
+            status: 1,
+            startTime: 1,
+            endTime: 1,
+            match_score: 1,
+            team_A: {
+              $map: {
+                input: "$team_A",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  player_score: "$$player.player_score",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_A_users.firstName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] }
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_A_users.lastName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] }
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_A_users.email",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] }
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_A_users.profilePhoto",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] }
+                    ],
+                  },
+                },
+              },
+            },
+            team_B: {
+              $map: {
+                input: "$team_B",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  player_score: "$$player.player_score",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_B_users.firstName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] }
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_B_users.lastName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] }
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_B_users.email",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] }
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_B_users.profilePhoto",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] }
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        },
+      ]);
   
       successResponse(res, matches, statusCodes.OK);
     } catch (error) {
