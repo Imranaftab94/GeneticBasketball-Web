@@ -597,6 +597,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 $and: [
                   { $gte: ["$$booking.bookingDate", start] },
                   { $lte: ["$$booking.bookingDate", end] },
+                  { $eq: ["$$booking.status", "Pending"] },
                 ],
               },
             },
