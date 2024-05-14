@@ -49,6 +49,18 @@ function calculateHoursBetweenOnlyTimes(startTime, endTime) {
 }
 
 
+function generateRandomNumberString(length) {
+    let result = '';
+    const characters = '0123456789'; // Pool of characters to choose from
+
+    for (let i = 0; i < length; i++) {
+        const randomIndex = Math.floor(Math.random() * characters.length);
+        result += characters.charAt(randomIndex);
+    }
+
+    return result;
+}
+
 
 async function sendMatchStartPaymentInfo(
   communityCenterId,
@@ -187,7 +199,7 @@ async function sendMatchStartPaymentInfo(
     <table>
         <tr>
             <td>Invoice No:</td>
-            <td>001</td>
+            <td>${generateRandomNumberString(4)}</td>
         </tr>
         <tr>
             <td>Invoice Month:</td>
