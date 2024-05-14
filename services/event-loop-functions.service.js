@@ -35,38 +35,36 @@ const modifyBookingStatus = async (communityCenterId, bookingIds) => {
 };
 
 function calculateHoursBetweenOnlyTimes(startTime, endTime) {
-    // Parse start and end times into Date objects
-    const start = new Date("2000-01-01 " + startTime); // Concatenate with dummy date for parsing
-    const end = new Date("2000-01-01 " + endTime);
+  // Parse start and end times into Date objects
+  const start = new Date("2000-01-01 " + startTime); // Concatenate with dummy date for parsing
+  const end = new Date("2000-01-01 " + endTime);
 
-    // Calculate difference in milliseconds
-    const differenceMs = end - start;
+  // Calculate difference in milliseconds
+  const differenceMs = end - start;
 
-    // Convert milliseconds to hours
-    const differenceHours = differenceMs / (1000 * 60 * 60);
+  // Convert milliseconds to hours
+  const differenceHours = differenceMs / (1000 * 60 * 60);
 
-    return differenceHours;
+  return differenceHours;
 }
-
 
 function generateRandomNumberString(length) {
-    let result = '';
-    const characters = '0123456789'; // Pool of characters to choose from
+  let result = "";
+  const characters = "0123456789"; // Pool of characters to choose from
 
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters.charAt(randomIndex);
-    }
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * characters.length);
+    result += characters.charAt(randomIndex);
+  }
 
-    return result;
+  return result;
 }
-
 
 async function sendMatchStartPaymentInfo(
   communityCenterId,
   startTime,
   endTime,
-  match_date,
+  match_date
 ) {
   try {
     // Find community center
@@ -84,7 +82,9 @@ async function sendMatchStartPaymentInfo(
     }
 
     let date = new Date(match_date).toLocaleDateString();
-    let month = new Date(match_date).toLocaleString('default', { month: 'long' });
+    let month = new Date(match_date).toLocaleString("default", {
+      month: "long",
+    });
     const hoursBetween = calculateHoursBetweenOnlyTimes(startTime, endTime);
 
     // Check for invalid hours calculation
