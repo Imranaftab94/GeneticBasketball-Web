@@ -60,6 +60,7 @@ const getCommunities = asyncHandler(async (req, res) => {
   const communities = await CommunityCenter.find(query)
     .select("-communityTimeSlots")
     .select("-_location")
+    .sort({ createdAt: -1 }) // Sort by createdAt in descending order
     .skip(offset)
     .limit(limit);
 
