@@ -58,11 +58,11 @@ const getCommunities = asyncHandler(async (req, res) => {
   const offset = (page - 1) * limit;
 
   const communities = await CommunityCenter.find(query)
-    .select("-communityTimeSlots")
-    .select("-_location")
-    .sort({ createdAt: -1 }) // Sort by createdAt in descending order
+    .select("-communityTimeSlots -_location")
+    .sort({ createdAt: -1 })
     .skip(offset)
     .limit(limit);
+console.log(communities);
 
   const message = `Communities fetched successfully.`;
 
