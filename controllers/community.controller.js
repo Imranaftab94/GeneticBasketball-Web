@@ -57,9 +57,8 @@ const getCommunities = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalCount / limit);
   const offset = (page - 1) * limit;
 
-  const communities = await CommunityCenter.find(query)
+  const communities = await CommunityCenter.find(query).sort({ createdAt: -1 })
     .select("-communityTimeSlots -_location")
-    .sort({ createdAt: -1 })
     .skip(offset)
     .limit(limit);
 console.log(communities);
