@@ -38,7 +38,7 @@ const getCommunities = asyncHandler(async (req, res) => {
       $geoWithin: {
         $centerSphere: [
           [longitude, latitude],
-          radius / 6378.1, // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
+          radius / 3963.2, // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
         ],
       },
     };
