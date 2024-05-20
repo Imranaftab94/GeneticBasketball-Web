@@ -29,6 +29,6 @@ router
   .route("/addOrUpdatePlayerStats")
   .post(protect, adminAndCommunity, addOrUpdatePlayerMatchStat);
 
-  router.route("/playerOverAllStats").get(protect, getPlayerOverallStats);
+router.route("/playerOverAllStats").get(protect, getPlayerOverallStats);
 
 export default router;
