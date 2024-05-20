@@ -11,6 +11,7 @@ import {
   getAllMatchesWithinAdmin,
   getMatchesBasedonCommunity,
   getMatchesBasedonUser,
+  getPlayerOverallStats,
 } from "../controllers/match.controller.js";
 
 const router = express.Router();
@@ -26,6 +27,8 @@ router
 router.route("/admin/getList").get(protect, admin, getAllMatchesWithinAdmin);
 router
   .route("/addOrUpdatePlayerStats")
-  .post(protect, admin, addOrUpdatePlayerMatchStat);
+  .post(protect, adminAndCommunity, addOrUpdatePlayerMatchStat);
+
+  router.route("/playerOverAllStats").get(protect, getPlayerOverallStats);
 
 export default router;

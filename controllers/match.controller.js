@@ -1011,11 +1011,136 @@ const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
   }
 });
 
+
+const getPlayerOverallStats = asyncHandler(async (req, res) => {
+  try {
+    const playerId = req.user._id;
+
+    // Aggregate matches to get the total, won, and lost counts
+    const matches = await Matches.aggregate([
+      {
+        $match: {
+          status: MatchStatus.FINISHED,
+          $or: [
+            { "team_A.user": playerId },
+            { "team_B.user": playerId  },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          isTeamA: { $in: [playerId, "$team_A.user"] },
+          isTeamB: { $in: [playerId, "$team_B.user"] },
+          winner: "$match_score.winner",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalMatches: { $sum: 1 },
+          wonMatches: {
+            $sum: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $and: [{ $eq: ["$winner", "team_A"] }, "$isTeamA"] },
+                    { $and: [{ $eq: ["$winner", "team_B"] }, "$isTeamB"] },
+                  ],
+                },
+                then: 1,
+                else: 0,
+              },
+            },
+          },
+          lostMatches: {
+            $sum: {
+              $cond: {
+                if: {
+                  $or: [
+                    { $and: [{ $eq: ["$winner", "team_A"] }, "$isTeamB"] },
+                    { $and: [{ $eq: ["$winner", "team_B"] }, "$isTeamA"] },
+                  ],
+                },
+                then: 1,
+                else: 0,
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    const matchStats = matches[0] || {
+      totalMatches: 0,
+      wonMatches: 0,
+      lostMatches: 0,
+    };
+
+    // Aggregate player match stats
+    const playerStats = await PlayerMatchStats.aggregate([
+      {
+        $match: {
+          player: playerId,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalMinutesPlayed: { $sum: "$minutesPlayed" },
+          totalFieldGoalsMade: { $sum: "$fieldGoalsMade" },
+          totalFieldGoalsAttempted: { $sum: "$fieldGoalsAttempted" },
+          totalThreePointersMade: { $sum: "$threePointersMade" },
+          totalThreePointersAttempted: { $sum: "$threePointersAttempted" },
+          totalFreeThrowsMade: { $sum: "$freeThrowsMade" },
+          totalFreeThrowsAttempted: { $sum: "$freeThrowsAttempted" },
+          totalOffensiveRebounds: { $sum: "$offensiveRebounds" },
+          totalDefensiveRebounds: { $sum: "$defensiveRebounds" },
+          totalAssists: { $sum: "$assists" },
+          totalSteals: { $sum: "$steals" },
+          totalBlocks: { $sum: "$blocks" },
+          totalTurnovers: { $sum: "$turnovers" },
+          totalPointsScored: { $sum: "$pointsScored" },
+        },
+      },
+    ]);
+
+    const stats = playerStats[0] || {
+      totalMinutesPlayed: 0,
+      totalFieldGoalsMade: 0,
+      totalFieldGoalsAttempted: 0,
+      totalThreePointersMade: 0,
+      totalThreePointersAttempted: 0,
+      totalFreeThrowsMade: 0,
+      totalFreeThrowsAttempted: 0,
+      totalOffensiveRebounds: 0,
+      totalDefensiveRebounds: 0,
+      totalAssists: 0,
+      totalSteals: 0,
+      totalBlocks: 0,
+      totalTurnovers: 0,
+      totalPointsScored: 0,
+    };
+
+    const response = {
+      totalMatches: matchStats.totalMatches,
+      wonMatches: matchStats.wonMatches,
+      lostMatches: matchStats.lostMatches,
+      ...stats,
+    };
+
+    successResponse(res, response, statusCodes.OK);
+  } catch (error) {
+    errorResponse(res, error.message, statusCodes.BAD_REQUEST);
+  }
+});
+
 export {
   createMatch,
   getMatchesBasedonUser,
   getMatchesBasedonCommunity,
   changeMatchStatus,
   getAllMatchesWithinAdmin,
-  addOrUpdatePlayerMatchStat
+  addOrUpdatePlayerMatchStat,
+  getPlayerOverallStats
 };
