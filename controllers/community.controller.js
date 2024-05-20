@@ -38,7 +38,7 @@ const getCommunities = asyncHandler(async (req, res) => {
       $geoWithin: {
         $centerSphere: [
           [longitude, latitude],
-          radius / 6378.1, // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
+          radius / 3963.2, // Radius in radians (radius in kilometers / Earth’s radius in kilometers)
         ],
       },
     };
@@ -57,11 +57,11 @@ const getCommunities = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalCount / limit);
   const offset = (page - 1) * limit;
 
-  const communities = await CommunityCenter.find(query)
-    .select("-communityTimeSlots")
-    .select("-_location")
+  const communities = await CommunityCenter.find(query).sort({ createdAt: -1 })
+    .select("-communityTimeSlots -_location")
     .skip(offset)
     .limit(limit);
+console.log(communities);
 
   const message = `Communities fetched successfully.`;
 
