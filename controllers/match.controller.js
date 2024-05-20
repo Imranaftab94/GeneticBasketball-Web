@@ -16,6 +16,7 @@ import {
 import mongoose from "mongoose";
 import { MatchStatus } from "../constants/match-status.constant.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
+import { updateMatchWinner } from "../services/matches.service.js";
 
 const createMatch = asyncHandler(async (req, res) => {
   const { error } = matchSchemaValidator.validate(req.body);
@@ -655,6 +656,13 @@ const changeMatchStatus = asyncHandler(async (req, res) => {
     }
 
     const { id, status } = req.body;
+    if(status === MatchStatus.FINISHED){
+      let match = await updateMatchWinner(id);
+      successResponse(res, match, statusCodes.OK);
+    }
+    else {
+
+    
 
     // Find the match by ID
     const match = await Matches.findById(id);
@@ -662,6 +670,7 @@ const changeMatchStatus = asyncHandler(async (req, res) => {
     if (!match) {
       return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
     }
+    
 
     // Update the match status using the schema method
     match.status = status;
@@ -679,6 +688,7 @@ const changeMatchStatus = asyncHandler(async (req, res) => {
       }
     }, 3000);
     successResponse(res, data, statusCodes.OK);
+  }
   } catch (error) {
     return errorResponse(
       res,
@@ -952,14 +962,10 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
 
 const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
   try {
-    // Validate request body
+    // Validate request body using Joi or a similar library
     const { error } = playerMatchStatsSchema.validate(req.body);
     if (error) {
-      return errorResponse(
-        res,
-        error.details[0].message,
-        statusCodes.BAD_REQUEST
-      );
+      return errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     }
 
     // Check if player exists
@@ -981,33 +987,37 @@ const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
     });
 
     if (playerMatchStats) {
-      // Update player match stats
-      playerMatchStats.set(req.body);
-      await playerMatchStats.save();
+      // Update player match stats, excluding match and player ObjectId from the update
+      Object.entries(req.body).forEach(([key, value]) => {
+        if (key !== 'player' && key !== 'match') {
+          playerMatchStats[key] = value;
+        }
+      });
 
-      let data = {
+      await playerMatchStats.save();
+      return successResponse(res, {
         message: "Player match stats updated successfully",
-        data: playerMatchStats,
-      };
-      return successResponse(res, data, statusCodes.OK);
+        data: playerMatchStats
+      }, statusCodes.OK);
     } else {
-      // Create player match stats
-      playerMatchStats = new PlayerMatchStats(req.body);
+      // Create new player match stats, excluding direct assignment of match and player ObjectId
+      const newStats = { ...req.body };
+      delete newStats.match;  // Avoid directly setting the match ID
+      delete newStats.player; // Avoid directly setting the player ID
+
+      playerMatchStats = new PlayerMatchStats(newStats);
+      playerMatchStats.match = req.body.match; // Set match ID securely
+      playerMatchStats.player = req.body.player; // Set player ID securely
       await playerMatchStats.save();
 
-      let data = {
+      return successResponse(res, {
         message: "Player match stats created successfully",
-        data: playerMatchStats,
-      };
-      return successResponse(res, data, statusCodes.CREATED);
+        data: playerMatchStats
+      }, statusCodes.CREATED);
     }
   } catch (err) {
     console.error("Error adding/updating player match stats:", err);
-    return errorResponse(
-      res,
-      "Internal Server Error",
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return errorResponse(res, "Internal Server Error", statusCodes.INTERNAL_SERVER_ERROR);
   }
 });
 
