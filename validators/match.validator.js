@@ -4,7 +4,6 @@ import { MatchStatus } from "../constants/match-status.constant.js";
 const playerSchema = Joi.object({
   user: Joi.string().required(),
   bookingId: Joi.string().required(),
-
 });
 
 export const matchSchemaValidator = Joi.object({
@@ -20,6 +19,27 @@ export const matchSchemaValidator = Joi.object({
 }).options({ abortEarly: false });
 
 export const updateMatchStatusSchema = Joi.object({
-    id: Joi.string().required(),
-    status: Joi.string().valid(...Object.values(MatchStatus)).required()
-})
+  id: Joi.string().required(),
+  status: Joi.string()
+    .valid(...Object.values(MatchStatus))
+    .required(),
+});
+
+export const playerMatchStatsSchema = Joi.object({
+  player: Joi.string().required(),
+  match: Joi.string().required(),
+  minutesPlayed: Joi.number().required(),
+  fieldGoalsMade: Joi.number().required(),
+  fieldGoalsAttempted: Joi.number().required(),
+  threePointersMade: Joi.number().required(),
+  threePointersAttempted: Joi.number().required(),
+  freeThrowsMade: Joi.number().required(),
+  freeThrowsAttempted: Joi.number().required(),
+  offensiveRebounds: Joi.number().required(),
+  defensiveRebounds: Joi.number().required(),
+  assists: Joi.number().required(),
+  steals: Joi.number().required(),
+  blocks: Joi.number().required(),
+  turnovers: Joi.number().required(),
+  pointsScored: Joi.number().required(),
+});

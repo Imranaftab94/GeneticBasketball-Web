@@ -4,15 +4,28 @@ import {
   adminAndCommunity,
   protect,
 } from "../middleware/auth.middleware.js";
-import { changeMatchStatus, createMatch, getAllMatchesWithinAdmin, getMatchesBasedonCommunity, getMatchesBasedonUser } from "../controllers/match.controller.js";
+import {
+  addOrUpdatePlayerMatchStat,
+  changeMatchStatus,
+  createMatch,
+  getAllMatchesWithinAdmin,
+  getMatchesBasedonCommunity,
+  getMatchesBasedonUser,
+} from "../controllers/match.controller.js";
 
 const router = express.Router();
 
 router.route("/createMatch").post(protect, adminAndCommunity, createMatch);
 router.route("/getList").get(protect, getMatchesBasedonUser);
-router.route("/communityMatches").get(protect, adminAndCommunity, getMatchesBasedonCommunity);
-router.route("/updateStatus").put(protect, adminAndCommunity, changeMatchStatus);
+router
+  .route("/communityMatches")
+  .get(protect, adminAndCommunity, getMatchesBasedonCommunity);
+router
+  .route("/updateStatus")
+  .put(protect, adminAndCommunity, changeMatchStatus);
 router.route("/admin/getList").get(protect, admin, getAllMatchesWithinAdmin);
-
+router
+  .route("/addOrUpdatePlayerStats")
+  .post(protect, admin, addOrUpdatePlayerMatchStat);
 
 export default router;
