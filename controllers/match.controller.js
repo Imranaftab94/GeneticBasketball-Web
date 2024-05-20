@@ -169,6 +169,24 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
           as: "team_B_users",
         },
       },
+      // Lookup player stats for team A
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_A.user",
+          foreignField: "player",
+          as: "team_A_stats",
+        },
+      },
+      // Lookup player stats for team B
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_B.user",
+          foreignField: "player",
+          as: "team_B_stats",
+        },
+      },
       {
         $project: {
           community_center: {
@@ -214,6 +232,64 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: {
+                      $gt: [
+                        {
+                          $size: {
+                            $filter: {
+                              input: "$team_A_stats",
+                              as: "stat",
+                              cond: {
+                                $and: [
+                                  { $eq: ["$$stat.match", "$_id"] },
+                                  { $eq: ["$$stat.player", "$$player.user"] },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_A_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                          // Exclude updatedAt, createdAt, match, and player attributes
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -249,6 +325,64 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: {
+                      $gt: [
+                        {
+                          $size: {
+                            $filter: {
+                              input: "$team_B_stats",
+                              as: "stat",
+                              cond: {
+                                $and: [
+                                  { $eq: ["$$stat.match", "$_id"] },
+                                  { $eq: ["$$stat.player", "$$player.user"] },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_B_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                          // Exclude updatedAt, createdAt, match, and player attributes
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -261,6 +395,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
 
 const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
   try {
@@ -315,6 +450,24 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
           as: "team_B_users",
         },
       },
+      // Lookup player stats for team A
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_A.user",
+          foreignField: "player",
+          as: "team_A_stats",
+        },
+      },
+      // Lookup player stats for team B
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_B.user",
+          foreignField: "player",
+          as: "team_B_stats",
+        },
+      },
       {
         $project: {
           community_center: {
@@ -360,6 +513,46 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: { $gt: [{ $size: { $filter: { input: "$team_A_stats", as: "stat", cond: { $and: [{ $eq: ["$$stat.match", "$_id"] }, { $eq: ["$$stat.player", "$$player.user"] }] } } } }, 0] },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_A_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                          // Exclude updatedAt, createdAt, match, and player attributes
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -395,6 +588,46 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: { $gt: [{ $size: { $filter: { input: "$team_B_stats", as: "stat", cond: { $and: [{ $eq: ["$$stat.match", "$_id"] }, { $eq: ["$$stat.player", "$$player.user"] }] } } } }, 0] },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_B_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                          // Exclude updatedAt, createdAt, match, and player attributes
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -407,6 +640,8 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
+
 
 const changeMatchStatus = asyncHandler(async (req, res) => {
   try {
@@ -455,7 +690,6 @@ const changeMatchStatus = asyncHandler(async (req, res) => {
 
 const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
   try {
-    // Retrieve matches where the user is in team_A or team_B
     const matches = await Matches.aggregate([
       {
         $lookup: {
@@ -490,6 +724,22 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
           localField: "team_B.user",
           foreignField: "_id",
           as: "team_B_users",
+        },
+      },
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_A.user",
+          foreignField: "player",
+          as: "team_A_stats",
+        },
+      },
+      {
+        $lookup: {
+          from: "playermatchstats",
+          localField: "team_B.user",
+          foreignField: "player",
+          as: "team_B_stats",
         },
       },
       {
@@ -537,6 +787,63 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: {
+                      $gt: [
+                        {
+                          $size: {
+                            $filter: {
+                              input: "$team_A_stats",
+                              as: "stat",
+                              cond: {
+                                $and: [
+                                  { $eq: ["$$stat.match", "$_id"] },
+                                  { $eq: ["$$stat.player", "$$player.user"] },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_A_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -572,6 +879,63 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
                     { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
                   ],
                 },
+                stats: {
+                  $cond: {
+                    if: {
+                      $gt: [
+                        {
+                          $size: {
+                            $filter: {
+                              input: "$team_B_stats",
+                              as: "stat",
+                              cond: {
+                                $and: [
+                                  { $eq: ["$$stat.match", "$_id"] },
+                                  { $eq: ["$$stat.player", "$$player.user"] },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                    then: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: "$team_B_stats",
+                            as: "stat",
+                            cond: {
+                              $and: [
+                                { $eq: ["$$stat.match", "$_id"] },
+                                { $eq: ["$$stat.player", "$$player.user"] },
+                              ],
+                            },
+                          },
+                        },
+                        as: "filteredStat",
+                        in: {
+                          minutesPlayed: "$$filteredStat.minutesPlayed",
+                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
+                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
+                          threePointersMade: "$$filteredStat.threePointersMade",
+                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
+                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
+                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
+                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
+                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
+                          assists: "$$filteredStat.assists",
+                          steals: "$$filteredStat.steals",
+                          blocks: "$$filteredStat.blocks",
+                          turnovers: "$$filteredStat.turnovers",
+                          pointsScored: "$$filteredStat.pointsScored",
+                        },
+                      },
+                    },
+                    else: null,
+                  },
+                },
               },
             },
           },
@@ -584,6 +948,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
 
 const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
   try {
