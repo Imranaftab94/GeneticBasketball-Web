@@ -654,6 +654,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 email: "$bookings.bookedBy.email",
                 profilePhoto: "$bookings.bookedBy.profilePhoto",
                 coins: "$bookings.bookedBy.coins",
+                position:"$bookings.bookedBy.position"
               },
             },
           },
