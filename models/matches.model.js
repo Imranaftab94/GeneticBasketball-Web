@@ -28,48 +28,63 @@ const matcheSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    team_A: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        bookingId: {
-          type: String
-        },
-        player_score: {
-          type: Number,
-          default: null,
-        },
-      },
-    ],
-    team_B: [
-      {
-        user: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        player_score: {
-          type: Number,
-          default: null,
-        },
-      },
-    ],
-    match_score: {
-      team_A: {
-        type: Number,
-        default: null,
-      },
-      team_B: {
-        type: Number,
-        default: null,
-      },
-      winner: {
+    team_A: {
+      name: {
         type: String,
-        default: null,
       },
+      players: [
+        {
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          bookingId: {
+            type: String
+          },
+          gersyNumber: {
+            type: Number,
+            default: 0,
+          }
+        },
+      ],
+      matchScore: {
+        type: Number,
+        default: 0,
+      },
+      isWinner: {
+        type: Boolean,
+        default: false
+      }
+    },
+    team_B: {
+      name: {
+        type: String,
+      },
+      players: [
+        {
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          bookingId: {
+            type: String
+          },
+          gersyNumber: {
+            type: Number,
+            default: 0,
+          }
+        },
+      ],
+      matchScore: {
+        type: Number,
+        default: 0,
+      },
+      isWinner: {
+        type: Boolean,
+        default: false
+      }
     },
     created_by: {
       type: mongoose.Schema.Types.ObjectId,

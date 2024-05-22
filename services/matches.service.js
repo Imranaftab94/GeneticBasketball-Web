@@ -19,36 +19,34 @@ async function updateMatchWinner(matchId) {
     // Calculate total points for team A and team B
     const teamAPoints = playerStats
       .filter((stat) =>
-        match.team_A.some((player) => player.user.equals(stat.player))
+        match.team_A.players.some((player) => player.user.equals(stat.player))
       )
       .reduce((total, stat) => total + stat.pointsScored, 0);
 
     const teamBPoints = playerStats
       .filter((stat) =>
-        match.team_B.some((player) => player.user.equals(stat.player))
+        match.team_B.players.some((player) => player.user.equals(stat.player))
       )
       .reduce((total, stat) => total + stat.pointsScored, 0);
 
     // Determine the winner
-    let winner = null;
     if (teamAPoints > teamBPoints) {
-      winner = "team_A";
+      match.team_A.isWinner = true;
+      match.team_B.isWinner = false;
     } else if (teamBPoints > teamAPoints) {
-      winner = "team_B";
+      match.team_A.isWinner = false;
+      match.team_B.isWinner = true;
     }
 
     // Update match object with the winner and scores
     match.status = MatchStatus.FINISHED;
-    match.match_score = {
-      team_A: teamAPoints,
-      team_B: teamBPoints,
-      winner: winner,
-    };
+    match.team_A.matchScore = teamAPoints
+    match.team_B.matchScore = teamBPoints
 
     // Save the updated match
-    await match.save();
+    const updatedMatch = await match.save();
 
-    return match;
+    return updatedMatch;
   } catch (error) {
     console.error("Failed to update match winner:", error.message);
     throw error;

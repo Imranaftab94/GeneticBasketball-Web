@@ -1,10 +1,17 @@
 import Joi from "joi";
 import { MatchStatus } from "../constants/match-status.constant.js";
 
-const playerSchema = Joi.object({
-  user: Joi.string().required(),
-  bookingId: Joi.string().required(),
+const teamSchema = Joi.object({
+  name: Joi.string().required(),
+  players: Joi.array().items(
+    Joi.object({
+      user: Joi.string().required(),
+      bookingId: Joi.string().required(),
+      gersyNumber: Joi.number().required()
+    })
+  ).required()
 });
+
 
 export const matchSchemaValidator = Joi.object({
   community_center: Joi.string().required(),
@@ -14,8 +21,8 @@ export const matchSchemaValidator = Joi.object({
     .valid("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
     .required(),
   match_date: Joi.date().required(),
-  team_A: Joi.array().items(playerSchema).length(5).required(),
-  team_B: Joi.array().items(playerSchema).length(5).required(),
+  team_A: teamSchema,
+  team_B: teamSchema,
 }).options({ abortEarly: false });
 
 export const updateMatchStatusSchema = Joi.object({

@@ -63,28 +63,28 @@ const createMatch = asyncHandler(async (req, res) => {
     };
 
     // Check if all users in team_A exist
-    const missingTeamAUsers = await validateTeamUsers(team_A);
+    const missingTeamAUsers = await validateTeamUsers(team_A.players);
     if (missingTeamAUsers.length > 0) {
       return errorResponse(
         res,
-        `Users not found in Team A: ${missingTeamAUsers.join(", ")}`,
+        `Users not found in Team ${team_A.name}: ${missingTeamAUsers.join(", ")}`,
         statusCodes.NOT_FOUND
       );
     }
 
     // Check if all users in team_B exist
-    const missingTeamBUsers = await validateTeamUsers(team_B);
+    const missingTeamBUsers = await validateTeamUsers(team_B.players);
     if (missingTeamBUsers.length > 0) {
       return errorResponse(
         res,
-        `Users not found in Team B: ${missingTeamBUsers.join(", ")}`,
+        `Users not found in Team ${team_B.name}: ${missingTeamBUsers.join(", ")}`,
         statusCodes.NOT_FOUND
       );
     }
 
     // Check that no user is in both Team A and Team B
-    const teamAUsers = new Set(team_A.map((player) => player.user.toString()));
-    const teamBUsers = new Set(team_B.map((player) => player.user.toString()));
+    const teamAUsers = new Set(team_A.players.map((player) => player.user.toString()));
+    const teamBUsers = new Set(team_B.players.map((player) => player.user.toString()));
     const intersection = new Set(
       [...teamAUsers].filter((user) => teamBUsers.has(user))
     );
@@ -112,7 +112,7 @@ const createMatch = asyncHandler(async (req, res) => {
     });
     const savedMatch = await match.save();
     setTimeout(() => {
-      let team = [...team_A, ...team_B];
+      let team = [...team_A.players, ...team_B.players];
       let bookingIds = team.map((_team) => _team.bookingId);
       modifyBookingStatus(community_center, bookingIds);
     }, 3000);
@@ -130,8 +130,8 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
       {
         $match: {
           $or: [
-            { "team_A.user": req.user._id },
-            { "team_B.user": req.user._id },
+            { "team_A.players.user": req.user._id },
+            { "team_B.players.user": req.user._id },
           ],
         },
       },
@@ -148,8 +148,8 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
         $addFields: {
           allBookingIds: {
             $setUnion: [
-              { $map: { input: "$team_A", as: "a", in: "$$a.bookingId" } },
-              { $map: { input: "$team_B", as: "b", in: "$$b.bookingId" } },
+              { $map: { input: "$team_A.players", as: "a", in: "$$a.bookingId" } },
+              { $map: { input: "$team_B.players", as: "b", in: "$$b.bookingId" } },
             ],
           },
         },
@@ -157,7 +157,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "_id",
           as: "team_A_users",
         },
@@ -165,7 +165,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "_id",
           as: "team_B_users",
         },
@@ -174,7 +174,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "player",
           as: "team_A_stats",
         },
@@ -183,7 +183,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "player",
           as: "team_B_stats",
         },
@@ -202,186 +202,170 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
           endTime: 1,
           match_score: 1,
           team_A: {
-            $map: {
-              input: "$team_A",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_A_users.firstName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_A_users.lastName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_A_users.email",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_A_users.profilePhoto",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: "$team_A_stats",
-                              as: "stat",
-                              cond: {
-                                $and: [
-                                  { $eq: ["$$stat.match", "$_id"] },
-                                  { $eq: ["$$stat.player", "$$player.user"] },
-                                ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_A.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_A_users.firstName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_A_users.lastName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_A_users.email",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_A_users.profilePhoto",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_A_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
                               },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        0,
-                      ],
-                    },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_A_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
-                            },
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
                           },
-                        },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
-                          // Exclude updatedAt, createdAt, match, and player attributes
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
             },
           },
           team_B: {
-            $map: {
-              input: "$team_B",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_B_users.firstName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_B_users.lastName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_B_users.email",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_B_users.profilePhoto",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: "$team_B_stats",
-                              as: "stat",
-                              cond: {
-                                $and: [
-                                  { $eq: ["$$stat.match", "$_id"] },
-                                  { $eq: ["$$stat.player", "$$player.user"] },
-                                ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_B.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_B_users.firstName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_B_users.lastName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_B_users.email",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_B_users.profilePhoto",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_B_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
                               },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        0,
-                      ],
-                    },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_B_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
-                            },
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
                           },
-                        },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
-                          // Exclude updatedAt, createdAt, match, and player attributes
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
@@ -396,6 +380,8 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
+
 
 
 const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
@@ -429,8 +415,8 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
         $addFields: {
           allBookingIds: {
             $setUnion: [
-              { $map: { input: "$team_A", as: "a", in: "$$a.bookingId" } },
-              { $map: { input: "$team_B", as: "b", in: "$$b.bookingId" } },
+              { $map: { input: "$team_A.players", as: "a", in: "$$a.bookingId" } },
+              { $map: { input: "$team_B.players", as: "b", in: "$$b.bookingId" } },
             ],
           },
         },
@@ -438,7 +424,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "_id",
           as: "team_A_users",
         },
@@ -446,7 +432,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "_id",
           as: "team_B_users",
         },
@@ -455,7 +441,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "player",
           as: "team_A_stats",
         },
@@ -464,7 +450,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "player",
           as: "team_B_stats",
         },
@@ -483,150 +469,170 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
           endTime: 1,
           match_score: 1,
           team_A: {
-            $map: {
-              input: "$team_A",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_A_users.firstName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_A_users.lastName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_A_users.email",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_A_users.profilePhoto",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: { $gt: [{ $size: { $filter: { input: "$team_A_stats", as: "stat", cond: { $and: [{ $eq: ["$$stat.match", "$_id"] }, { $eq: ["$$stat.player", "$$player.user"] }] } } } }, 0] },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_A_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_A.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_A_users.firstName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_A_users.lastName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_A_users.email",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_A_users.profilePhoto",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_A_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
+                              },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
-                          // Exclude updatedAt, createdAt, match, and player attributes
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
+                          },
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
             },
           },
           team_B: {
-            $map: {
-              input: "$team_B",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_B_users.firstName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_B_users.lastName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_B_users.email",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_B_users.profilePhoto",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: { $gt: [{ $size: { $filter: { input: "$team_B_stats", as: "stat", cond: { $and: [{ $eq: ["$$stat.match", "$_id"] }, { $eq: ["$$stat.player", "$$player.user"] }] } } } }, 0] },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_B_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_B.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_B_users.firstName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_B_users.lastName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_B_users.email",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_B_users.profilePhoto",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_B_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
+                              },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
-                          // Exclude updatedAt, createdAt, match, and player attributes
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
+                          },
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
@@ -641,6 +647,8 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
     return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
+
 
 
 
@@ -714,8 +722,8 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
         $addFields: {
           allBookingIds: {
             $setUnion: [
-              { $map: { input: "$team_A", as: "a", in: "$$a.bookingId" } },
-              { $map: { input: "$team_B", as: "b", in: "$$b.bookingId" } },
+              { $map: { input: "$team_A.players", as: "a", in: "$$a.bookingId" } },
+              { $map: { input: "$team_B.players", as: "b", in: "$$b.bookingId" } },
             ],
           },
         },
@@ -723,7 +731,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "_id",
           as: "team_A_users",
         },
@@ -731,7 +739,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "_id",
           as: "team_B_users",
         },
@@ -739,7 +747,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_A.user",
+          localField: "team_A.players.user",
           foreignField: "player",
           as: "team_A_stats",
         },
@@ -747,7 +755,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
       {
         $lookup: {
           from: "playermatchstats",
-          localField: "team_B.user",
+          localField: "team_B.players.user",
           foreignField: "player",
           as: "team_B_stats",
         },
@@ -766,184 +774,170 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
           endTime: 1,
           match_score: 1,
           team_A: {
-            $map: {
-              input: "$team_A",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_A_users.firstName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_A_users.lastName",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_A_users.email",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_A_users.profilePhoto",
-                    { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: "$team_A_stats",
-                              as: "stat",
-                              cond: {
-                                $and: [
-                                  { $eq: ["$$stat.match", "$_id"] },
-                                  { $eq: ["$$stat.player", "$$player.user"] },
-                                ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_A.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_A_users.firstName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_A_users.lastName",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_A_users.email",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_A_users.profilePhoto",
+                      { $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_A_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
                               },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        0,
-                      ],
-                    },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_A_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
-                            },
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
                           },
-                        },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
             },
           },
           team_B: {
-            $map: {
-              input: "$team_B",
-              as: "player",
-              in: {
-                user: "$$player.user",
-                bookingId: "$$player.bookingId",
-                player_score: "$$player.player_score",
-                firstName: {
-                  $arrayElemAt: [
-                    "$team_B_users.firstName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                lastName: {
-                  $arrayElemAt: [
-                    "$team_B_users.lastName",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                email: {
-                  $arrayElemAt: [
-                    "$team_B_users.email",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                profilePhoto: {
-                  $arrayElemAt: [
-                    "$team_B_users.profilePhoto",
-                    { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
-                  ],
-                },
-                stats: {
-                  $cond: {
-                    if: {
-                      $gt: [
-                        {
-                          $size: {
-                            $filter: {
-                              input: "$team_B_stats",
-                              as: "stat",
-                              cond: {
-                                $and: [
-                                  { $eq: ["$$stat.match", "$_id"] },
-                                  { $eq: ["$$stat.player", "$$player.user"] },
-                                ],
+            name: 1,
+            matchScore: 1,
+            isWinner: 1,
+            players: {
+              $map: {
+                input: "$team_B.players",
+                as: "player",
+                in: {
+                  user: "$$player.user",
+                  bookingId: "$$player.bookingId",
+                  gersyNumber: "$$player.gersyNumber",
+                  firstName: {
+                    $arrayElemAt: [
+                      "$team_B_users.firstName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  lastName: {
+                    $arrayElemAt: [
+                      "$team_B_users.lastName",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  email: {
+                    $arrayElemAt: [
+                      "$team_B_users.email",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  profilePhoto: {
+                    $arrayElemAt: [
+                      "$team_B_users.profilePhoto",
+                      { $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+                    ],
+                  },
+                  stats: {
+                    $let: {
+                      vars: {
+                        filteredStats: {
+                          $arrayElemAt: [
+                            {
+                              $filter: {
+                                input: "$team_B_stats",
+                                as: "stat",
+                                cond: {
+                                  $and: [
+                                    { $eq: ["$$stat.match", "$_id"] },
+                                    { $eq: ["$$stat.player", "$$player.user"] },
+                                  ],
+                                },
                               },
                             },
-                          },
+                            0,
+                          ],
                         },
-                        0,
-                      ],
-                    },
-                    then: {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: "$team_B_stats",
-                            as: "stat",
-                            cond: {
-                              $and: [
-                                { $eq: ["$$stat.match", "$_id"] },
-                                { $eq: ["$$stat.player", "$$player.user"] },
-                              ],
-                            },
+                      },
+                      in: {
+                        $cond: {
+                          if: { $ne: ["$$filteredStats", null] },
+                          then: {
+                            minutesPlayed: "$$filteredStats.minutesPlayed",
+                            fieldGoalsMade: "$$filteredStats.fieldGoalsMade",
+                            fieldGoalsAttempted: "$$filteredStats.fieldGoalsAttempted",
+                            threePointersMade: "$$filteredStats.threePointersMade",
+                            threePointersAttempted: "$$filteredStats.threePointersAttempted",
+                            freeThrowsMade: "$$filteredStats.freeThrowsMade",
+                            freeThrowsAttempted: "$$filteredStats.freeThrowsAttempted",
+                            offensiveRebounds: "$$filteredStats.offensiveRebounds",
+                            defensiveRebounds: "$$filteredStats.defensiveRebounds",
+                            assists: "$$filteredStats.assists",
+                            steals: "$$filteredStats.steals",
+                            blocks: "$$filteredStats.blocks",
+                            turnovers: "$$filteredStats.turnovers",
+                            pointsScored: "$$filteredStats.pointsScored",
                           },
-                        },
-                        as: "filteredStat",
-                        in: {
-                          minutesPlayed: "$$filteredStat.minutesPlayed",
-                          fieldGoalsMade: "$$filteredStat.fieldGoalsMade",
-                          fieldGoalsAttempted: "$$filteredStat.fieldGoalsAttempted",
-                          threePointersMade: "$$filteredStat.threePointersMade",
-                          threePointersAttempted: "$$filteredStat.threePointersAttempted",
-                          freeThrowsMade: "$$filteredStat.freeThrowsMade",
-                          freeThrowsAttempted: "$$filteredStat.freeThrowsAttempted",
-                          offensiveRebounds: "$$filteredStat.offensiveRebounds",
-                          defensiveRebounds: "$$filteredStat.defensiveRebounds",
-                          assists: "$$filteredStat.assists",
-                          steals: "$$filteredStat.steals",
-                          blocks: "$$filteredStat.blocks",
-                          turnovers: "$$filteredStat.turnovers",
-                          pointsScored: "$$filteredStat.pointsScored",
+                          else: null,
                         },
                       },
                     },
-                    else: null,
                   },
                 },
               },
@@ -1021,7 +1015,6 @@ const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
   }
 });
 
-
 const getPlayerOverallStats = asyncHandler(async (req, res) => {
   try {
     const playerId = req.user._id;
@@ -1032,17 +1025,18 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
         $match: {
           status: MatchStatus.FINISHED,
           $or: [
-            { "team_A.user": playerId },
-            { "team_B.user": playerId  },
+            { "team_A.players.user": playerId },
+            { "team_B.players.user": playerId },
           ],
         },
       },
       {
         $project: {
-          _id: 1,
-          isTeamA: { $in: [playerId, "$team_A.user"] },
-          isTeamB: { $in: [playerId, "$team_B.user"] },
-          winner: "$match_score.winner",
+          _id: 0,
+          isTeamA: { $in: [playerId, "$team_A.players.user"] },
+          isTeamB: { $in: [playerId, "$team_B.players.user"] },
+          teamAWon: "$team_A.isWinner",
+          teamBWon: "$team_B.isWinner",
         },
       },
       {
@@ -1054,8 +1048,8 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
               $cond: {
                 if: {
                   $or: [
-                    { $and: [{ $eq: ["$winner", "team_A"] }, "$isTeamA"] },
-                    { $and: [{ $eq: ["$winner", "team_B"] }, "$isTeamB"] },
+                    { $and: ["$isTeamA", "$teamAWon"] },
+                    { $and: ["$isTeamB", "$teamBWon"] },
                   ],
                 },
                 then: 1,
@@ -1068,8 +1062,8 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
               $cond: {
                 if: {
                   $or: [
-                    { $and: [{ $eq: ["$winner", "team_A"] }, "$isTeamB"] },
-                    { $and: [{ $eq: ["$winner", "team_B"] }, "$isTeamA"] },
+                    { $and: ["$isTeamA", "$teamBWon"] },
+                    { $and: ["$isTeamB", "$teamAWon"] },
                   ],
                 },
                 then: 1,
@@ -1144,6 +1138,7 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
     errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
 
 export {
   createMatch,
