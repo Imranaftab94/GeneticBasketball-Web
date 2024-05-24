@@ -10,6 +10,7 @@ import {
   getCommunitySlotsBasedonDateRange,
   getMyBookings,
   registerCommunity,
+  signUpCommunityUser,
   updateCommunityCenter,
 } from "../controllers/community.controller.js";
 const router = express.Router();
@@ -24,5 +25,6 @@ router.route('/slot/addBooking').post(protect, addBookingToSlot);
 router.route('/slots/slotsBasedonDate').get(protect, getCommunitySlotsBasedonDateRange);
 router.route("/update").put(protect, adminAndCommunity, updateCommunityCenter);
 router.route('/slot/myBookings').get(protect, getMyBookings);
+router.route('/signup').post(signUpCommunityUser);
 
 export default router;

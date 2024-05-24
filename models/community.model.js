@@ -59,42 +59,49 @@ const communityCenterSchema = new Schema(
   {
     name: {
       type: String,
-      required: true,
+      // required: true,
+      default: null,
     },
     email: {
       type: String,
-      required: true,
+      default: null,
+      // required: true,
     },
     image: {
-      type: String, // Assuming you store the image URL
-      required: true,
+      type: String,
+      default: null, // Assuming you store the image URL
+      // required: true,
     },
     _location: {
       type: {
         type: String, // Must be 'Point' for GeoJSON
         enum: ["Point"], // Only 'Point' is allowed
         default: "Point",
-        required: true,
+        // required: true,
       },
       coordinates: {
         type: [Number], // Array of numbers [longitude, latitude]
-        required: true,
+        // required: true,
       },
     },
     location: {
       latitude: {
         type: Number,
+        default: null,
       },
       longitude: {
         type: Number,
+        default: null,
       },
     },
     address: {
       type: String,
-      required: true,
+      default: null,
+      // required: true,
     },
     description: {
       type: String,
+      default: null,
     },
     price: {
       type: Number,

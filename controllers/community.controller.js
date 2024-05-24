@@ -12,10 +12,16 @@ import {
 import { CommunityCenter } from "../models/community.model.js";
 import {
   generateCommunityCenterCredentialEmailContent,
+  generateOTPEmailContent,
   sendMail,
 } from "../services/email.service.js";
 import mongoose from "mongoose";
-import { getAbbreviatedDayOfWeek } from "../services/common.service.js";
+import {
+  generateOTP,
+  getAbbreviatedDayOfWeek,
+} from "../services/common.service.js";
+import { registerUserSchema } from "../validators/user.validator.js";
+import { generateToken } from "../services/generateToken.service.js";
 
 // @desc    Get communities list
 // @route   GET /api/v1/community/getAll
@@ -57,11 +63,12 @@ const getCommunities = asyncHandler(async (req, res) => {
   const totalPages = Math.ceil(totalCount / limit);
   const offset = (page - 1) * limit;
 
-  const communities = await CommunityCenter.find(query).sort({ createdAt: -1 })
+  const communities = await CommunityCenter.find(query)
+    .sort({ createdAt: -1 })
     .select("-communityTimeSlots -_location")
     .skip(offset)
     .limit(limit);
-console.log(communities);
+  console.log(communities);
 
   const message = `Communities fetched successfully.`;
 
@@ -654,7 +661,7 @@ const getCommunitySlotsBasedonDateRange = asyncHandler(async (req, res) => {
                 email: "$bookings.bookedBy.email",
                 profilePhoto: "$bookings.bookedBy.profilePhoto",
                 coins: "$bookings.bookedBy.coins",
-                position:"$bookings.bookedBy.position"
+                position: "$bookings.bookedBy.position",
               },
             },
           },
@@ -795,6 +802,57 @@ const getMyBookings = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Register a new  community user
+// @route   POST /api/v1/community/signup
+// @access  Public
+const signUpCommunityUser = asyncHandler(async (req, res) => {
+  // Validate request body
+  const { error } = registerUserSchema.validate(req.body);
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+  const { email, password, fcmToken } = req.body;
+  const userExists = await User.findOne({ email });
+
+  if (userExists) {
+    errorResponse(
+      res,
+      "A user with same email already registered",
+      statusCodes.CONFLICT
+    );
+  }
+
+  let otpCode = generateOTP(4);
+
+  const user = await User.create({
+    email,
+    password,
+    otpCode,
+    role: Roles.COMMUNITY,
+    fcmTokens: fcmToken ? [fcmToken] : [],
+  });
+
+  if (user) {
+    let communityUser = await CommunityCenter.create({
+      email,
+      community_user: user._id,
+    });
+    delete communityUser._doc._location;
+    
+    let data = {
+      message:
+        "For verification of your email, An OTP code has been sent to your email.",
+      user: { ...communityUser._doc, role: user.role },
+      token: generateToken(user._id),
+    };
+    successResponse(res, data, statusCodes.CREATED);
+    await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
+  } else {
+    errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
+  }
+});
+
 export {
   getCommunities,
   registerCommunity,
@@ -806,4 +864,5 @@ export {
   getCommunitySlotsBasedonDateRange,
   updateCommunityCenter,
   getMyBookings,
+  signUpCommunityUser,
 };
