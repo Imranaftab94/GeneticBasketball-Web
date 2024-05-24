@@ -102,7 +102,7 @@ const authUser = asyncHandler(async (req, res) => {
   ) {
     // Check if the fcmToken is provided and not already in the array
     if (fcmToken && !user.fcmTokens.includes(fcmToken)) {
-      // Add fcmToken to the user's model
+      // Add fcmToken to the user's model for push
       user.fcmTokens.push(fcmToken);
       await user.save();
     }
