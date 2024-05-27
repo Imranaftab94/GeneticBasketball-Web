@@ -36,6 +36,7 @@ const createMatch = asyncHandler(async (req, res) => {
     endTime,
     match_date,
     day,
+    name,
   } = req.body;
 
   try {
@@ -108,6 +109,7 @@ const createMatch = asyncHandler(async (req, res) => {
       endTime,
       match_date,
       day,
+      name,
       created_by: req.user._id,
     });
     const savedMatch = await match.save();
@@ -200,6 +202,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
           status: 1,
           startTime: 1,
           endTime: 1,
+          name: 1,
           match_score: 1,
           team_A: {
             name: 1,
@@ -467,6 +470,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
           status: 1,
           startTime: 1,
           endTime: 1,
+          name: 1,
           match_score: 1,
           team_A: {
             name: 1,
@@ -772,6 +776,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
           status: 1,
           startTime: 1,
           endTime: 1,
+          name: 1,
           match_score: 1,
           team_A: {
             name: 1,

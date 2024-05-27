@@ -8,6 +8,10 @@ const matcheSchema = new mongoose.Schema(
       ref: "CommunityCenter",
       required: true,
     },
+    name: {
+      type: String,
+      default: null,
+    },
     startTime: {
       type: String,
       required: true,

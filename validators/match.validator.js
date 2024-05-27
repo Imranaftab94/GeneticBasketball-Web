@@ -17,6 +17,7 @@ export const matchSchemaValidator = Joi.object({
   community_center: Joi.string().required(),
   startTime: Joi.string().required(),
   endTime: Joi.string().required(),
+  name: Joi.string().required(),
   day: Joi.string()
     .valid("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
     .required(),
