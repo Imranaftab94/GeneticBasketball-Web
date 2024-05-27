@@ -9,4 +9,17 @@ const MatchStatus = {
   HALFTIME: "Half-time",
 };
 
-export { MatchStatus };
+const TOURNAMENT_STATUS = {
+  UPCOMING: 'Upcoming',
+  ONGOING: 'Ongoing',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+};
+
+const PLAYER_TOURNAMENT_BOOKING_STATUS = {
+  BOOKED: 'Booked',
+  CONFIRMED: 'Confirmed',
+  CANCELLED: 'Cancelled'
+};
+
+export { MatchStatus, TOURNAMENT_STATUS, PLAYER_TOURNAMENT_BOOKING_STATUS };
