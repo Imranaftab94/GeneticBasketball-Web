@@ -9,6 +9,7 @@ import {
   changeMatchStatus,
   createMatch,
   getAllMatchesWithinAdmin,
+  getMatchesBasedonBookingId,
   getMatchesBasedonCommunity,
   getMatchesBasedonUser,
   getPlayerOverallStats,
@@ -30,5 +31,6 @@ router
   .post(protect, adminAndCommunity, addOrUpdatePlayerMatchStat);
 
 router.route("/playerOverAllStats").get(protect, getPlayerOverallStats);
+router.route("/getListBasedOnbooking").get(protect, getMatchesBasedonBookingId);
 
 export default router;

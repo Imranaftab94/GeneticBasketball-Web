@@ -757,18 +757,14 @@ const getMyBookings = asyncHandler(async (req, res) => {
     const bookings = communityCenters.reduce((acc, center) => {
       center.communityTimeSlots.forEach((slot) => {
         slot.slots.forEach((slotItem) => {
-          const filteredBookings = slotItem.bookings.filter(
-            (booking) =>
-              booking.bookedBy.toString() === userId &&
-              booking.status === "Pending" &&
-              booking.bookingDate >= currentDate
-          );
+          const filteredBookings = slotItem.bookings;
 
           acc.push(
             ...filteredBookings.map((booking) => ({
               day: slot.day,
               startTime: slotItem.startTime,
               endTime: slotItem.endTime,
+              bookingId: booking._id,
               bookingDate: booking.bookingDate,
               status: booking.status,
               communityCenter: {
@@ -788,7 +784,7 @@ const getMyBookings = asyncHandler(async (req, res) => {
     }, []);
 
     const response = {
-      future_bookings: bookings,
+      all_bookings: bookings,
     };
 
     successResponse(res, response, statusCodes.OK);
