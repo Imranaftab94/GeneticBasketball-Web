@@ -1022,7 +1022,11 @@ const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
 
 const getPlayerOverallStats = asyncHandler(async (req, res) => {
   try {
-    const playerId = req.user._id;
+    if(!req.query.user){
+      errorResponse(res, 'User id is required.', statusCodes.BAD_REQUEST)
+    }
+
+    const playerId = new mongoose.Types.ObjectId(req.query.user)
 
     // Aggregate matches to get the total, won, and lost counts
     const matches = await Matches.aggregate([
