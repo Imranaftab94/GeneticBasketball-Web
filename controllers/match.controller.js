@@ -1152,6 +1152,13 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
 const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
   try {
     // Retrieve matches where the user is in team_A or team_B
+    if (!req.query.bookingId) {
+      return errorResponse(
+        res,
+        "Booking id is required",
+        statusCodes.BAD_REQUEST
+      );
+    }
     const matches = await Matches.aggregate([
       {
         $match: {
