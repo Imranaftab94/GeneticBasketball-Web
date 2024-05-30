@@ -1409,10 +1409,7 @@ const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
       },
     ]);
 
-    let data = {
-      message: 'Match details fetched successfully!',
-      data: matches.length > 0 ? matches[0] : null
-    }
+    let data = matches.length > 0 ? matches[0] : null
 
     successResponse(res, data, statusCodes.OK);
   } catch (error) {
