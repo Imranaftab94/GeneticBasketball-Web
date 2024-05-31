@@ -1,6 +1,6 @@
 const BookingStatus = {
   PENDING: "Pending",
-  ASSIGNED: "Assigned",
+  ASSIGNED: "Confirmed",
 };
 
 export { BookingStatus };
