@@ -35,7 +35,7 @@ const registerUser = asyncHandler(async (req, res) => {
     return;
   }
   const { email, password, fcmToken } = req.body;
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ email: email.toLowerCase() });
 
   if (userExists) {
     errorResponse(
@@ -48,7 +48,7 @@ const registerUser = asyncHandler(async (req, res) => {
   let otpCode = generateOTP(4);
 
   const user = await User.create({
-    email,
+    email: email.toLowerCase(),
     password,
     otpCode,
     fcmTokens: fcmToken ? [fcmToken] : [],
@@ -82,7 +82,7 @@ const authUser = asyncHandler(async (req, res) => {
     return;
   }
 
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email: email.toLowerCase() });
 
   if (!user) {
     errorResponse(res, "Email not found", statusCodes.UNAUTHORIZED);
