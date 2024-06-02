@@ -3,7 +3,8 @@ import colors from "colors";
 
 export const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI);
+    let mongoURI = process.env.ENVIRONMENT === 'Production' ? process.env.PROD_MONGODB_URI : process.env.ENVIRONMENT === 'Development' && process.env.DEV_MONGODB_URI;
+    const conn = await mongoose.connect(mongoURI);
 
     console.log(`MongoDB Connected: ${conn.connection.host}`.bgMagenta);
   } catch (error) {
