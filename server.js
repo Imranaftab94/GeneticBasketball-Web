@@ -27,5 +27,5 @@ const PORT = process.env.PORT || 9000;
 
 app.listen(PORT, () => {
     console.log(`Server is listening on port ${PORT}  `.bgBlue)
-    console.log(`Current environment is ${process.env.Environment}  `.bgBlue)
+    console.log(`Current environment is ${process.env.ENVIRONMENT}  `.bgBlue)
 });
