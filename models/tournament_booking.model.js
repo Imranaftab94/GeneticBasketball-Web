@@ -1,6 +1,6 @@
 // models/TournamentBooking.js
 import mongoose from "mongoose";
-import { PLAYER_TOURNAMENT_BOOKING_STATUS } from "../constants/match-status.constant";
+import { PLAYER_TOURNAMENT_BOOKING_STATUS } from "../constants/match-status.constant.js";
 
 const TournamentBookingSchema = new mongoose.Schema(
   {

@@ -19,4 +19,9 @@ const createTournamentSchema = Joi.object({
     .default(TOURNAMENT_STATUS.UPCOMING),
 });
 
-export { createTournamentSchema };
+const tournamentBookingValidationSchema = Joi.object({
+  player: Joi.string().required(),
+  tournament: Joi.string().required(),
+});
+
+export { createTournamentSchema, tournamentBookingValidationSchema };

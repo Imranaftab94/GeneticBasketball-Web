@@ -2,9 +2,10 @@ import asyncHandler from "express-async-handler";
 import { User } from "../models/user.model.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
-import { createTournamentSchema } from "../validators/tournament.validator.js";
+import { createTournamentSchema, tournamentBookingValidationSchema } from "../validators/tournament.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
+import { TournamentBooking } from "../models/tournament_booking.model.js";
 
 const createTournament = asyncHandler(async (req, res) => {
   const { error } = createTournamentSchema.validate(req.body);
@@ -76,4 +77,79 @@ const createTournament = asyncHandler(async (req, res) => {
   }
 });
 
-export { createTournament };
+const listTournaments = asyncHandler(async (req, res) => {
+  try {
+    const tournaments = await Tournament.find({})
+      .sort({ createdAt: -1 })
+      .select("-_location")
+      .populate({
+        path: "community_center",
+        select: "name image address", // Only select these fields
+      });
+
+    successResponse(res, tournaments, statusCodes.OK);
+  } catch (err) {
+    errorResponse(
+      res,
+      "An error occurred while fetching tournaments",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+const addTournamentBooking = asyncHandler(async (req, res) => {
+  // Validate the request body
+  const { error } = tournamentBookingValidationSchema.validate(req.body);
+
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  // Extract validated data
+  const { player, tournament } = req.body;
+
+  try {
+    // Check if the player already has a booking for the tournament
+    const existingBooking = await TournamentBooking.findOne({ player, tournament });
+    if (existingBooking) {
+      return errorResponse(res, "Player already has a booking for this tournament", statusCodes.BAD_REQUEST);
+    }
+
+    // Fetch the player and tournament from the database
+    const foundPlayer = await User.findById(player);
+    const foundTournament = await Tournament.findById(tournament);
+
+    if (!foundPlayer || !foundTournament) {
+      return errorResponse(res, "Player or tournament not found", statusCodes.NOT_FOUND);
+    }
+
+    // Check if the player has enough coins
+    if (foundPlayer.coins < foundTournament.entryFee) {
+      return errorResponse(res, "Insufficient coins to enter the tournament", statusCodes.BAD_REQUEST);
+    }
+
+    // Deduct the entry fee from the player's coins
+    foundPlayer.coins -= foundTournament.entryFee;
+    await foundPlayer.save();
+
+    // Create a new tournament booking
+    const tournamentBooking = new TournamentBooking({
+      player,
+      tournament,
+    });
+
+    // Save the tournament booking to the database
+    await tournamentBooking.save();
+
+    let data = {
+      message: "Tournament booking created successfully.",
+      tournamentBooking,
+    };
+    successResponse(res, data, statusCodes.CREATED);
+  } catch (err) {
+    errorResponse(res, "An error occurred while creating the tournament booking", statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+export { createTournament, listTournaments, addTournamentBooking };
