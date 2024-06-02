@@ -757,8 +757,10 @@ const getMyBookings = asyncHandler(async (req, res) => {
     const bookings = communityCenters.reduce((acc, center) => {
       center.communityTimeSlots.forEach((slot) => {
         slot.slots.forEach((slotItem) => {
-          const filteredBookings = slotItem.bookings;
-
+          const filteredBookings = slotItem.bookings.filter(
+            (booking) =>
+              booking.bookedBy.toString() === userId
+          );
           acc.push(
             ...filteredBookings.map((booking) => ({
               day: slot.day,
