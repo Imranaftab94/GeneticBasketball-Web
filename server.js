@@ -7,6 +7,7 @@ import userRoutes from "./routes/user.route.js";
 import communityRoutes from "./routes/community.route.js";
 import matchesRoutes from "./routes/match.route.js";
 import tournamentRoutes from "./routes/tournament.route.js";
+import promoRoutes from "./routes/promo.route.js"
 
 dotenv.config();
 connectDB();
@@ -20,6 +21,7 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/community", communityRoutes);
 app.use("/api/v1/matches", matchesRoutes);
 app.use("/api/v1/tournaments", tournamentRoutes);
+app.use("/api/v1/promos", promoRoutes);
 
 const PORT = process.env.PORT || 9000;
 
