@@ -2,10 +2,14 @@ import asyncHandler from "express-async-handler";
 import { User } from "../models/user.model.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
-import { createTournamentSchema, tournamentBookingValidationSchema } from "../validators/tournament.validator.js";
+import {
+  createTournamentSchema,
+  tournamentBookingValidationSchema,
+} from "../validators/tournament.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
 import { TournamentBooking } from "../models/tournament_booking.model.js";
+import { TOURNAMENT_STATUS } from "../constants/match-status.constant.js";
 
 const createTournament = asyncHandler(async (req, res) => {
   const { error } = createTournamentSchema.validate(req.body);
@@ -110,23 +114,50 @@ const addTournamentBooking = asyncHandler(async (req, res) => {
   const { player, tournament } = req.body;
 
   try {
-    // Check if the player already has a booking for the tournament
-    const existingBooking = await TournamentBooking.findOne({ player, tournament });
-    if (existingBooking) {
-      return errorResponse(res, "Player already has a booking for this tournament", statusCodes.BAD_REQUEST);
-    }
-
     // Fetch the player and tournament from the database
     const foundPlayer = await User.findById(player);
     const foundTournament = await Tournament.findById(tournament);
 
     if (!foundPlayer || !foundTournament) {
-      return errorResponse(res, "Player or tournament not found", statusCodes.NOT_FOUND);
+      return errorResponse(
+        res,
+        "Player or tournament not found",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    // Check if the max players count has been reached
+    const existingBookingsCount = await TournamentBooking.countDocuments({
+      tournament,
+    });
+    if (existingBookingsCount >= foundTournament.maxPlayers) {
+      return errorResponse(
+        res,
+        "Tournament has reached its maximum player limit",
+        statusCodes.BAD_REQUEST
+      );
+    }
+
+    // Check if the player already has a booking for the tournament
+    const existingBooking = await TournamentBooking.findOne({
+      player,
+      tournament,
+    });
+    if (existingBooking) {
+      return errorResponse(
+        res,
+        "Player already has a booking for this tournament",
+        statusCodes.BAD_REQUEST
+      );
     }
 
     // Check if the player has enough coins
     if (foundPlayer.coins < foundTournament.entryFee) {
-      return errorResponse(res, "Insufficient coins to enter the tournament", statusCodes.BAD_REQUEST);
+      return errorResponse(
+        res,
+        "Insufficient coins to enter the tournament",
+        statusCodes.BAD_REQUEST
+      );
     }
 
     // Deduct the entry fee from the player's coins
@@ -148,7 +179,45 @@ const addTournamentBooking = asyncHandler(async (req, res) => {
     };
     successResponse(res, data, statusCodes.CREATED);
   } catch (err) {
-    errorResponse(res, "An error occurred while creating the tournament booking", statusCodes.INTERNAL_SERVER_ERROR);
+    errorResponse(
+      res,
+      "An error occurred while creating the tournament booking",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+// start the tournament
+// Controller to update tournament status and booking statuses
+const updateTournamentAndBookings = asyncHandler(async (req, res) => {
+  const { tournamentId, bookings } = req.body;
+
+  try {
+    // Update the tournament status
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      tournamentId,
+      { status: TOURNAMENT_STATUS.ONGOING },
+      { new: true }
+    );
+
+    if (!updatedTournament) {
+      return errorResponse(res, "Tournament not found", statusCodes.NOT_FOUND);
+    }
+
+    setTimeout(() => {
+
+    }, 1000)
+
+    let data = {
+      message: "Tournament has been started successfully",
+    };
+    successResponse(res, data, statusCodes.OK);
+  } catch (error) {
+    errorResponse(
+      res,
+      "An error occurred while updating statuses",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
   }
 });
 
