@@ -6,12 +6,16 @@ import {
   createTournamentSchema,
   startTournamentValidationSchema,
   tournamentBookingValidationSchema,
+  tournamentMatchSchemaValidator,
 } from "../validators/tournament.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
 import { TournamentBooking } from "../models/tournament_booking.model.js";
 import { TOURNAMENT_STATUS } from "../constants/match-status.constant.js";
 import { updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
+import mongoose from "mongoose";
+import { Team } from "../models/tournament_team.model.js";
+import { TournamentMatches } from "../models/tournament_match.model.js";
 
 const createTournament = asyncHandler(async (req, res) => {
   const { error } = createTournamentSchema.validate(req.body);
@@ -213,8 +217,12 @@ const updateTournamentAndBookings = asyncHandler(async (req, res) => {
     }
 
     setTimeout(() => {
-      updateTournamentBookingStatus(bookings, tournamentId, updatedTournament.entryFee  )
-    }, 1000)
+      updateTournamentBookingStatus(
+        bookings,
+        tournamentId,
+        updatedTournament.entryFee
+      );
+    }, 1000);
 
     let data = {
       message: "Tournament has been started successfully",
@@ -229,4 +237,155 @@ const updateTournamentAndBookings = asyncHandler(async (req, res) => {
   }
 });
 
-export { createTournament, listTournaments, addTournamentBooking, updateTournamentAndBookings };
+//Create match with teams
+
+const createMatchWithTeams = asyncHandler(async (req, res) => {
+  const { error, value } = tournamentMatchSchemaValidator.validate(req.body);
+
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+  }
+
+  const findTournament = await Tournament.findById(req.body.tournament);
+
+  console.log(findTournament);
+
+  if (!findTournament) {
+    return errorResponse(res, "Tournament not found", statusCodes.NOT_FOUND);
+  }
+  const communityCenter = await CommunityCenter.findById(
+    req.body.community_center
+  );
+  if (!communityCenter) {
+    return errorResponse(
+      res,
+      "Community center not found",
+      statusCodes.NOT_FOUND
+    );
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const {
+      community_center,
+      tournament,
+      startTime,
+      endTime,
+      name,
+      day,
+      match_date,
+      team_A,
+      team_B,
+    } = req.body;
+
+    // Create Team A
+    const teamAData = {
+      name: team_A.name,
+      tournament: tournament,
+      players: team_A.players,
+    };
+
+    const createdTeamA = new Team(teamAData);
+    await createdTeamA.save({ session });
+
+    // Create Team B
+    const teamBData = {
+      name: team_B.name,
+      tournament: tournament,
+      players: team_B.players,
+    };
+
+    const createdTeamB = new Team(teamBData);
+    await createdTeamB.save({ session });
+
+    // Create Match
+    const matchData = {
+      community_center,
+      tournament,
+      name,
+      startTime,
+      endTime,
+      day,
+      match_date,
+      team_A: createdTeamA._id,
+      team_B: createdTeamB._id,
+      created_by: req.user._id,
+    };
+
+    const createdMatch = new TournamentMatches(matchData);
+    await createdMatch.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    let data = {
+      message: "Match and teams created successfully",
+      match: createdMatch,
+      teamA: createdTeamA,
+      teamB: createdTeamB,
+    };
+    successResponse(res, data, statusCodes.CREATED);
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.log(error);
+    errorResponse(
+      res,
+      "Internal server error.",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+// Function to get matches by tournament ID including team details
+const getMatchesByTournament = asyncHandler(async (req, res) => {
+  try {
+    const { tournamentId } = req.query;
+    if (!tournamentId) {
+      return errorResponse(
+        res,
+        "TournamentId is required",
+        statusCodes.NOT_FOUND
+      );
+    }
+    const matches = await TournamentMatches.find({ tournament: tournamentId })
+      .populate({
+        path: "team_A",
+        select: "_id name players matchScore isWinner", // Only select these fields
+      })
+      .populate({
+        path: "team_B",
+        select: "_id name players matchScore isWinner", // Only select these fields
+      })
+      .populate({
+        path: "community_center",
+        select: "_id name image address", // Only select these fields
+      })      .populate({
+        path: "tournament",
+        select: "_id name prize status", // Only select these fields
+      })
+      .exec();
+
+    successResponse(res, matches, statusCodes.OK);
+  } catch (error) {
+    console.log(error);
+    errorResponse(
+      res,
+      "Internal server error.",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+//Get matches list under tournament
+
+export {
+  createTournament,
+  listTournaments,
+  addTournamentBooking,
+  updateTournamentAndBookings,
+  createMatchWithTeams,
+  getMatchesByTournament,
+};
