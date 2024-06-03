@@ -1,8 +1,11 @@
+import mongoose from "mongoose";
 import { BookingStatus } from "../constants/common.constant.js";
 import { Roles } from "../constants/role.constant.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { User } from "../models/user.model.js";
 import { sendMail } from "./email.service.js";
+import { TournamentBooking } from "../models/tournament_booking.model.js";
+import { PLAYER_TOURNAMENT_BOOKING_STATUS } from "../constants/match-status.constant.js";
 
 const modifyBookingStatus = async (communityCenterId, bookingIds) => {
   try {
@@ -261,4 +264,59 @@ async function sendMatchStartPaymentInfo(
   }
 }
 
-export { modifyBookingStatus, sendMatchStartPaymentInfo };
+const refundTournamentEntryFee = async (playerId, tournamentId, entryFeeCoins) => {
+
+  // Find the player by ID and update their coins
+  const player = await User.findById(playerId);
+  if (!player) {
+    throw new Error('Player not found');
+  }
+
+  // Update the player's coins field
+  player.coins += entryFeeCoins;
+  await player.save();
+
+  // Log the refund for audit purposes
+  console.log(`Refunded ${entryFeeCoins} coins to player ${playerId} for tournament ${tournamentId}`);
+};
+
+
+const updateTournamentBookingStatus = async (bookings, tournamentId, entryFeeCoins) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const bookingIds = bookings.map(booking => booking.bookingId);
+
+    // Update bookings to confirmed
+    await TournamentBooking.updateMany(
+      { _id: { $in: bookingIds } },
+      { status: PLAYER_TOURNAMENT_BOOKING_STATUS.CONFIRMED },
+      { session }
+    );
+
+    // Find and update bookings not in the provided array to cancelled
+    const cancelledBookings = await TournamentBooking.find(
+      { tournament: tournamentId, _id: { $nin: bookingIds } }
+    ).session(session);
+
+    for (const booking of cancelledBookings) {
+      booking.status = PLAYER_TOURNAMENT_BOOKING_STATUS.CANCELLED;
+      await booking.save({ session });
+
+      // Refund the entry fee to the player
+      await refundTournamentEntryFee(booking.player, tournamentId, entryFeeCoins);
+    }
+
+    await session.commitTransaction();
+    session.endSession();
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+};
+
+
+
+export { modifyBookingStatus, sendMatchStartPaymentInfo, updateTournamentBookingStatus };

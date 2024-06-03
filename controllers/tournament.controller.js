@@ -4,12 +4,14 @@ import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
   createTournamentSchema,
+  startTournamentValidationSchema,
   tournamentBookingValidationSchema,
 } from "../validators/tournament.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
 import { TournamentBooking } from "../models/tournament_booking.model.js";
 import { TOURNAMENT_STATUS } from "../constants/match-status.constant.js";
+import { updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
 
 const createTournament = asyncHandler(async (req, res) => {
   const { error } = createTournamentSchema.validate(req.body);
@@ -190,6 +192,12 @@ const addTournamentBooking = asyncHandler(async (req, res) => {
 // start the tournament
 // Controller to update tournament status and booking statuses
 const updateTournamentAndBookings = asyncHandler(async (req, res) => {
+  const { error } = startTournamentValidationSchema.validate(req.body);
+
+  if (error) {
+    errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    return;
+  }
   const { tournamentId, bookings } = req.body;
 
   try {
@@ -205,7 +213,7 @@ const updateTournamentAndBookings = asyncHandler(async (req, res) => {
     }
 
     setTimeout(() => {
-
+      updateTournamentBookingStatus(bookings, tournamentId, updatedTournament.entryFee  )
     }, 1000)
 
     let data = {
@@ -221,4 +229,4 @@ const updateTournamentAndBookings = asyncHandler(async (req, res) => {
   }
 });
 
-export { createTournament, listTournaments, addTournamentBooking };
+export { createTournament, listTournaments, addTournamentBooking, updateTournamentAndBookings };

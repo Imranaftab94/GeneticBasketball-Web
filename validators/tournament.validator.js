@@ -24,4 +24,14 @@ const tournamentBookingValidationSchema = Joi.object({
   tournament: Joi.string().required(),
 });
 
-export { createTournamentSchema, tournamentBookingValidationSchema };
+const tournamentBookingSchema = Joi.object({
+  bookingId: Joi.string().required(),
+  player: Joi.string().required()
+});
+
+const startTournamentValidationSchema = Joi.object({
+  tournamentId: Joi.string().required(),
+  bookings: Joi.array().required().items(tournamentBookingSchema)
+})
+
+export { createTournamentSchema, tournamentBookingValidationSchema, startTournamentValidationSchema };
