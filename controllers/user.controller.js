@@ -245,6 +245,7 @@ const socialAuth = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
+  console.log('Token internal data', req.user)
   if(!req.user){
     errorResponse(res, "Token is required", statusCodes.NOT_FOUND);
   }
