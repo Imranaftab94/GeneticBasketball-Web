@@ -4,8 +4,10 @@ import {
   addTournamentBooking,
   createMatchWithTeams,
   createTournament,
+  getBookingsByTournament,
   getMatchesByTournament,
   listTournaments,
+  listTournamentsUnderCommunity,
   updateTournamentAndBookings,
 } from "../controllers/tournament.controller.js";
 
@@ -23,5 +25,7 @@ router
   .route("/createTournamentMatch")
   .post(protect, adminAndCommunity, createMatchWithTeams);
   router.route("/matches").get(protect, getMatchesByTournament);
+  router.route("/communityTournaments").get(protect, listTournamentsUnderCommunity);
+  router.route("/booking").get(protect, getBookingsByTournament);
 
 export default router;

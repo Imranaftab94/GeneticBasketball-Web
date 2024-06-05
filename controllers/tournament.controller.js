@@ -11,7 +11,10 @@ import {
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
 import { TournamentBooking } from "../models/tournament_booking.model.js";
-import { TOURNAMENT_STATUS } from "../constants/match-status.constant.js";
+import {
+  PLAYER_TOURNAMENT_BOOKING_STATUS,
+  TOURNAMENT_STATUS,
+} from "../constants/match-status.constant.js";
 import { updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
 import mongoose from "mongoose";
 import { Team } from "../models/tournament_team.model.js";
@@ -362,7 +365,8 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
       .populate({
         path: "community_center",
         select: "_id name image address", // Only select these fields
-      })      .populate({
+      })
+      .populate({
         path: "tournament",
         select: "_id name prize status", // Only select these fields
       })
@@ -379,7 +383,59 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
   }
 });
 
-//Get matches list under tournament
+//Get tournaments under community
+const listTournamentsUnderCommunity = asyncHandler(async (req, res) => {
+  const { community_id } = req.query;
+  if (!community_id) {
+    errorResponse(
+      res,
+      "Communnity Center id is required",
+      statusCodes.BAD_REQUEST
+    );
+  }
+  try {
+    const tournaments = await Tournament.find({
+      community_center: community_id,
+    })
+      .sort({ createdAt: -1 })
+      .select("-_location")
+      .populate({
+        path: "community_center",
+        select: "name image address", // Only select these fields
+      });
+
+    successResponse(res, tournaments, statusCodes.OK);
+  } catch (err) {
+    errorResponse(res, err.message, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+//Get bookings of the tournament
+const getBookingsByTournament = asyncHandler(async (req, res) => {
+  try {
+    const { tournamentId } = req.query;
+    if (!tournamentId) {
+      errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
+    }
+    const findTournament = await Tournament.findById(tournamentId).select("-_location -tournament_matches -tournament_bookings -tournament_team")
+    .populate({
+      path: "community_center",
+      select: "name image address", // Only select these fields
+    });
+    const bookings = await TournamentBooking.find({
+      tournament: tournamentId,
+      status: PLAYER_TOURNAMENT_BOOKING_STATUS.BOOKED,
+    });
+
+    const data = {
+      tournament: findTournament,
+      bookings
+    }
+    successResponse(res, data, statusCodes.OK);
+  } catch (error) {
+    errorResponse(res, err.message, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
 
 export {
   createTournament,
@@ -388,4 +444,6 @@ export {
   updateTournamentAndBookings,
   createMatchWithTeams,
   getMatchesByTournament,
+  listTournamentsUnderCommunity,
+  getBookingsByTournament
 };
