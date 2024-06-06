@@ -16,6 +16,8 @@ const playerMatchStatsSchema = new Schema(
     fieldGoalsMade: Number,
     fieldGoalsAttempted: Number,
     threePointersMade: Number,
+    fieldGoalsPercentage: Number,
+    threePointersPercentage: Number,
     threePointersAttempted: Number,
     offensiveRebounds: Number,
     rebounds: Number,

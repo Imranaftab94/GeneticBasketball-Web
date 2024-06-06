@@ -358,26 +358,34 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
         statusCodes.NOT_FOUND
       );
     }
+    const findTournament = await Tournament.findById(tournamentId).select("-_location -tournament_matches -tournament_bookings -tournament_team")
+    .populate({
+      path: "community_center",
+      select: "name image address", // Only select these fields
+    });
     const matches = await TournamentMatches.find({ tournament: tournamentId })
       .populate({
         path: "team_A",
-        select: "_id name players matchScore isWinner", // Only select these fields
+        select: "_id name players matchScore isWinner",
+        populate: {
+          path: "players.user",
+          select: "firstName lastName email profilePhoto coins", // Select player details from User model
+        }, // Only select these fields
       })
       .populate({
         path: "team_B",
         select: "_id name players matchScore isWinner", // Only select these fields
-      })
-      .populate({
-        path: "community_center",
-        select: "_id name image address", // Only select these fields
-      })
-      .populate({
-        path: "tournament",
-        select: "_id name prize status", // Only select these fields
+        populate: {
+          path: "players.user",
+          select: "firstName lastName email profilePhoto position", // Select player details from User model
+        },
       })
       .exec();
-
-    successResponse(res, matches, statusCodes.OK);
+      const data = {
+        tournament: findTournament,
+        matches
+      }
+    successResponse(res, data, statusCodes.OK);
   } catch (error) {
     console.log(error);
     errorResponse(
@@ -418,9 +426,9 @@ const listTournamentsUnderCommunity = asyncHandler(async (req, res) => {
 //Get bookings of the tournament
 const getBookingsByTournament = asyncHandler(async (req, res) => {
   try {
-    const { tournamentId } = req.query;
-    if (!tournamentId) {
-      errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
+    const { tournamentId, status } = req.query;
+    if (!tournamentId || !status) {
+      errorResponse(res, "Tournament id / status is required", statusCodes.BAD_REQUEST);
     }
     const findTournament = await Tournament.findById(tournamentId).select("-_location -tournament_matches -tournament_bookings -tournament_team")
     .populate({
@@ -429,7 +437,10 @@ const getBookingsByTournament = asyncHandler(async (req, res) => {
     });
     const bookings = await TournamentBooking.find({
       tournament: tournamentId,
-      status: PLAYER_TOURNAMENT_BOOKING_STATUS.BOOKED,
+      status: status,
+    }).populate({
+      path: "player",
+      select: "firstName lastName email profilePhoto position coins", // Select player details from User model
     });
 
     const data = {
