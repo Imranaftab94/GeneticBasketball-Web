@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import { statusCodes } from "../constants/statusCodes.constant.js";
 import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
+  TournamentPlayerMatchStatsSchema,
   createTournamentSchema,
   startTournamentValidationSchema,
   tournamentBookingValidationSchema,
@@ -12,13 +13,17 @@ import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
 import { TournamentBooking } from "../models/tournament_booking.model.js";
 import {
+  MatchStatus,
   PLAYER_TOURNAMENT_BOOKING_STATUS,
   TOURNAMENT_STATUS,
 } from "../constants/match-status.constant.js";
-import { updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
+import { sendMatchStartPaymentInfo, updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
 import mongoose from "mongoose";
 import { Team } from "../models/tournament_team.model.js";
 import { TournamentMatches } from "../models/tournament_match.model.js";
+import { TournamentPlayerMatchStat } from "../models/tournament_player_stats.model.js";
+import { updateMatchStatusSchema } from "../validators/match.validator.js";
+import { updateTournamentMatchWinner } from "../services/matches.service.js";
 
 const createTournament = asyncHandler(async (req, res) => {
   const { error } = createTournamentSchema.validate(req.body);
@@ -437,6 +442,127 @@ const getBookingsByTournament = asyncHandler(async (req, res) => {
   }
 });
 
+//Add or update tournament player stat 
+const addOrUpdateTournamentPlayerMatchStat = asyncHandler(async (req, res) => {
+  try {
+    // Validate request body using Joi or a similar library
+    const { error } = TournamentPlayerMatchStatsSchema.validate(req.body);
+    if (error) {
+      return errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+    }
+
+    // Check if player exists
+    const playerExists = await User.exists({ _id: req.body.player });
+    if (!playerExists) {
+      return errorResponse(res, "Player not found.", statusCodes.NOT_FOUND);
+    }
+
+    // Check if match exists
+    const matchExists = await TournamentMatches.exists({ _id: req.body.match });
+    if (!matchExists) {
+      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+    }
+
+    // Check if player match stat already exists
+    let playerMatchStats = await TournamentPlayerMatchStat.findOne({
+      player: req.body.player,
+      match: req.body.match,
+      tournament: req.body.tournament
+    });
+
+    if (playerMatchStats) {
+      // Update player match stats, excluding match and player ObjectId from the update
+      Object.entries(req.body).forEach(([key, value]) => {
+        if (key !== 'player' && key !== 'match') {
+          playerMatchStats[key] = value;
+        }
+      });
+
+      await playerMatchStats.save();
+      return successResponse(res, {
+        message: "Player match stats updated successfully",
+        data: playerMatchStats
+      }, statusCodes.OK);
+    } else {
+      // Create new player match stats, excluding direct assignment of match and player ObjectId
+      const newStats = { ...req.body };
+      delete newStats.match;  // Avoid directly setting the match ID
+      delete newStats.player; // Avoid directly setting the player ID
+      delete newStats.tournament; // Avoid directly setting the player ID
+
+      playerMatchStats = new TournamentPlayerMatchStat(newStats);
+      playerMatchStats.match = req.body.match; // Set match ID securely
+      playerMatchStats.player = req.body.player; // Set player ID securely
+      playerMatchStats.tournament = req.body.tournament; // Set player ID securely
+      await playerMatchStats.save();
+
+      return successResponse(res, {
+        message: "Player match stats created successfully",
+        data: playerMatchStats
+      }, statusCodes.CREATED);
+    }
+  } catch (err) {
+    console.error("Error adding/updating player match stats:", err);
+    return errorResponse(res, "Internal Server Error", statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+//Update Match status
+const changeTournamentMatchStatus = asyncHandler(async (req, res) => {
+  try {
+    const { error } = updateMatchStatusSchema.validate(req.body);
+    if (error) {
+      return errorResponse(
+        res,
+        error.details[0].message,
+        statusCodes.BAD_REQUEST
+      );
+    }
+
+    const { id, status } = req.body;
+    if(status === MatchStatus.FINISHED){
+      let match = await updateTournamentMatchWinner(id);
+      successResponse(res, match, statusCodes.OK);
+    }
+    else {
+
+    
+
+    // Find the match by ID
+    const match = await TournamentMatches.findById(id);
+
+    if (!match) {
+      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+    }
+    
+
+    // Update the match status using the schema method
+    match.status = status;
+    await match.save();
+
+    let data = { message: "Match status updated successfully.", match };
+    setTimeout(() => {
+      if (status === MatchStatus.ONGOING) {
+        sendMatchStartPaymentInfo(
+          match.community_center,
+          match.startTime,
+          match.endTime,
+          match.match_date
+        );
+      }
+    }, 3000);
+    successResponse(res, data, statusCodes.OK);
+  }
+  } catch (error) {
+    return errorResponse(
+      res,
+      error.message,
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
+
 export {
   createTournament,
   listTournaments,
@@ -445,5 +571,7 @@ export {
   createMatchWithTeams,
   getMatchesByTournament,
   listTournamentsUnderCommunity,
-  getBookingsByTournament
+  getBookingsByTournament,
+  addOrUpdateTournamentPlayerMatchStat,
+  changeTournamentMatchStatus
 };

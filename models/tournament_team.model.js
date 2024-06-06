@@ -12,7 +12,7 @@ const TeamSchema = new mongoose.Schema(
           ref: "User",
           required: true,
         },
-        tournament_booking_id: {
+        bookingId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Tournament_Booking",
         },

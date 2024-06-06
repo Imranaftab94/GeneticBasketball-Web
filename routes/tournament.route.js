@@ -1,7 +1,9 @@
 import express from "express";
 import { adminAndCommunity, protect } from "../middleware/auth.middleware.js";
 import {
+  addOrUpdateTournamentPlayerMatchStat,
   addTournamentBooking,
+  changeTournamentMatchStatus,
   createMatchWithTeams,
   createTournament,
   getBookingsByTournament,
@@ -27,5 +29,7 @@ router
   router.route("/matches").get(protect, getMatchesByTournament);
   router.route("/communityTournaments").get(protect, listTournamentsUnderCommunity);
   router.route("/booking").get(protect, getBookingsByTournament);
+  router.route("/matches/addOrUpdatePlayerMatchStats").post(protect, adminAndCommunity, addOrUpdateTournamentPlayerMatchStat);
+  router.route("/matches/updateStatus").post(protect, adminAndCommunity, changeTournamentMatchStatus);
 
 export default router;

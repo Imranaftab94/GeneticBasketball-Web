@@ -61,9 +61,27 @@ const tournamentMatchSchemaValidator = Joi.object({
   team_B: teamSchema.required(),
 }).options({ abortEarly: false });
 
+const TournamentPlayerMatchStatsSchema = Joi.object({
+  player: Joi.string().required(),
+  match: Joi.string().required(),
+  tournament: Joi.string().required(),
+  fieldGoalsMade: Joi.number().required(),
+  fieldGoalsAttempted: Joi.number().required(),
+  threePointersMade: Joi.number().required(),
+  threePointersAttempted: Joi.number().required(),
+  offensiveRebounds: Joi.number().required(),
+  rebounds: Joi.number().required(),
+  assists: Joi.number().required(),
+  steals: Joi.number().required(),
+  blocks: Joi.number().required(),
+  turnovers: Joi.number().required(),
+  pointsScored: Joi.number().required(),
+});
+
 export {
   createTournamentSchema,
   tournamentBookingValidationSchema,
   startTournamentValidationSchema,
   tournamentMatchSchemaValidator,
+  TournamentPlayerMatchStatsSchema
 };
