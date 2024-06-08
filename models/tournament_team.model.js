@@ -20,6 +20,11 @@ const TeamSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+        // stats: {
+        //   type: mongoose.Schema.Types.ObjectId,
+        //   ref: "Tournament_PlayerMatch_Stat",
+        //   default: null,
+        // }
       },
     ],
     matchScore: {
