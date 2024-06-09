@@ -12,7 +12,7 @@ const TeamSchema = new mongoose.Schema(
           ref: "User",
           required: true,
         },
-        tournament_booking_id: {
+        bookingId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Tournament_Booking",
         },
@@ -20,6 +20,11 @@ const TeamSchema = new mongoose.Schema(
           type: Number,
           default: 0,
         },
+        stats: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Tournament_PlayerMatch_Stat",
+          default: null,
+        }
       },
     ],
     matchScore: {

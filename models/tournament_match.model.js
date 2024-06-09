@@ -52,5 +52,5 @@ const matcheSchema = new mongoose.Schema(
 );
 
 // Create the model from the schema and export it
-const Matches = mongoose.model("Tournament_Match", matcheSchema);
-export { Matches };
+const TournamentMatches = mongoose.model("Tournament_Match", matcheSchema);
+export { TournamentMatches };
