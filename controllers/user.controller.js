@@ -194,23 +194,8 @@ const socialAuth = asyncHandler(async (req, res) => {
     return;
   }
 
-  const { firstName, lastName } = extractFirstAndLastName(name);
-
-  const userExists = await User.findOne({ email });
-
-  if (userExists && !userExists.socialId) {
-    errorResponse(
-      res,
-      "You have already registered by this email using email and password, please use your email and password to login",
-      statusCodes.BAD_REQUEST
-    );
-  } else if (userExists && userExists.socialId) {
-    if (fcmToken && !userExists.fcmTokens.includes(fcmToken)) {
-      // Add fcmToken to the user's model
-      userExists.fcmTokens.push(fcmToken);
-      await userExists.save();
-    }
-
+  if (socialPlatform.toLowerCase() === "apple" && !email) {
+    const userExists = await User.findOne({ socialId: socialId });
     let data = {
       message: "You have successfully Logged In.",
       user: userExists,
@@ -218,25 +203,50 @@ const socialAuth = asyncHandler(async (req, res) => {
     };
     successResponse(res, data, statusCodes.OK);
   } else {
-    const user = await User.create({
-      email,
-      firstName,
-      lastName,
-      socialId,
-      socialPlatform,
-      isEmailVerified: true,
-      fcmTokens: fcmToken ? [fcmToken] : [],
-    });
+    const { firstName, lastName } = extractFirstAndLastName(name);
 
-    if (user) {
+    const userExists = await User.findOne({ email });
+
+    if (userExists && !userExists.socialId) {
+      errorResponse(
+        res,
+        "You have already registered by this email using email and password, please use your email and password to login",
+        statusCodes.BAD_REQUEST
+      );
+    } else if (userExists && userExists.socialId) {
+      if (fcmToken && !userExists.fcmTokens.includes(fcmToken)) {
+        // Add fcmToken to the user's model
+        userExists.fcmTokens.push(fcmToken);
+        await userExists.save();
+      }
+
       let data = {
-        message: "Your account has been successfully created.",
-        user: user._doc,
-        token: generateToken(user._id),
+        message: "You have successfully Logged In.",
+        user: userExists,
+        token: generateToken(userExists._id),
       };
-      successResponse(res, data, statusCodes.CREATED);
+      successResponse(res, data, statusCodes.OK);
     } else {
-      errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
+      const user = await User.create({
+        email,
+        firstName,
+        lastName,
+        socialId,
+        socialPlatform,
+        isEmailVerified: true,
+        fcmTokens: fcmToken ? [fcmToken] : [],
+      });
+
+      if (user) {
+        let data = {
+          message: "Your account has been successfully created.",
+          user: user._doc,
+          token: generateToken(user._id),
+        };
+        successResponse(res, data, statusCodes.CREATED);
+      } else {
+        errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
+      }
     }
   }
 });
@@ -245,8 +255,8 @@ const socialAuth = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/users/profile
 // @access  Private
 const getUserProfile = asyncHandler(async (req, res) => {
-  console.log('Token internal data', req.user)
-  if(!req.user){
+  console.log("Token internal data", req.user);
+  if (!req.user) {
     errorResponse(res, "Token is required", statusCodes.NOT_FOUND);
   }
   const user = await User.findById(req.user._id);
@@ -457,7 +467,11 @@ const addTopUpCoins = asyncHandler(async (req, res) => {
 
   try {
     // Find the user by ID
-    const foundUser = await User.findByIdAndUpdate(req.user._id, { $inc: { coins: coins_value } }, { new: true }).select("-fcmTokens");
+    const foundUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { $inc: { coins: coins_value } },
+      { new: true }
+    ).select("-fcmTokens");
     if (!foundUser) {
       return errorResponse(res, "User not found.", statusCodes.NOT_FOUND);
     }
