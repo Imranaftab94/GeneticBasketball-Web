@@ -8,6 +8,7 @@ import {
   createTournament,
   getBookingsByTournament,
   getMatchesByTournament,
+  getPlayerRankingsWithinTournament,
   listTournaments,
   listTournamentsUnderCommunity,
   updateTournamentAndBookings,
@@ -31,5 +32,6 @@ router
   router.route("/booking").get(protect, getBookingsByTournament);
   router.route("/matches/addOrUpdatePlayerMatchStats").post(protect, adminAndCommunity, addOrUpdateTournamentPlayerMatchStat);
   router.route("/matches/updateStatus").post(protect, adminAndCommunity, changeTournamentMatchStatus);
+  router.route("/rankings").get(protect, getPlayerRankingsWithinTournament);
 
 export default router;

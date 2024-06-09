@@ -602,6 +602,45 @@ const changeTournamentMatchStatus = asyncHandler(async (req, res) => {
   }
 });
 
+//get player overall ranking in tournament
+const getPlayerRankingsWithinTournament =  asyncHandler( async(req, res) => {
+  try {
+    const {tournamentId} = req.query
+    const playerRankings = await TournamentPlayerMatchStat.aggregate([
+      {
+        $match: { tournament: new mongoose.Types.ObjectId(tournamentId) } // Match specific tournament
+      },
+      {
+        $group: {
+          _id: "$player",
+          totalPoints: { $sum: "$pointsScored" }
+        }
+      },
+      {
+        $sort: { totalPoints: -1 }
+      }
+    ]);
+
+    // Now fetch user details for each player
+    const rankedPlayers = await Promise.all(playerRankings.map(async (ranking, index) => {
+      const playerDetails = await User.findById(ranking._id);
+      return {
+        rank: index + 1, // Rank within the tournament
+        firstName: playerDetails.firstName,
+        lastName: playerDetails.lastName,
+        email: playerDetails.email,
+        profilePhoto: playerDetails.profilePhoto, // Assuming you have a 'profilePhoto' field in your User model
+        totalPoints: ranking.totalPoints
+      };
+    }));
+
+    successResponse(res, rankedPlayers, statusCodes.OK)
+  } catch (err) {
+    console.error("Error getting player rankings within tournament:", err);
+    throw err;
+  }
+})
+
 
 export {
   createTournament,
@@ -613,5 +652,6 @@ export {
   listTournamentsUnderCommunity,
   getBookingsByTournament,
   addOrUpdateTournamentPlayerMatchStat,
-  changeTournamentMatchStatus
+  changeTournamentMatchStatus,
+  getPlayerRankingsWithinTournament
 };
