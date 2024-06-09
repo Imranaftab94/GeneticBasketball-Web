@@ -3,6 +3,7 @@ import { Matches } from "../models/matches.model.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
 import { TournamentMatches } from "../models/tournament_match.model.js";
 import { TournamentPlayerMatchStat } from "../models/tournament_player_stats.model.js";
+import { Team } from "../models/tournament_team.model.js";
 
 async function updateMatchWinner(matchId) {
   try {
@@ -92,6 +93,16 @@ async function updateTournamentMatchWinner(matchId) {
       match.team_A.isWinner = false;
       match.team_B.isWinner = true;
     }
+
+    await Team.findByIdAndUpdate(match.team_A._id, {
+      matchScore: teamAPoints,
+      isWinner: match.team_A.isWinner,
+    });
+
+    await Team.findByIdAndUpdate(match.team_B._id, {
+      matchScore: teamBPoints,
+      isWinner: match.team_B.isWinner,
+    });
 
     // Update match object with the winner and scores
     match.status = MatchStatus.FINISHED;

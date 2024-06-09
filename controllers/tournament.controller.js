@@ -17,7 +17,10 @@ import {
   PLAYER_TOURNAMENT_BOOKING_STATUS,
   TOURNAMENT_STATUS,
 } from "../constants/match-status.constant.js";
-import { sendMatchStartPaymentInfo, updateTournamentBookingStatus } from "../services/event-loop-functions.service.js";
+import {
+  sendMatchStartPaymentInfo,
+  updateTournamentBookingStatus,
+} from "../services/event-loop-functions.service.js";
 import mongoose from "mongoose";
 import { Team } from "../models/tournament_team.model.js";
 import { TournamentMatches } from "../models/tournament_match.model.js";
@@ -358,9 +361,11 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
         statusCodes.NOT_FOUND
       );
     }
-    
+
     const findTournament = await Tournament.findById(tournamentId)
-      .select("-_location -tournament_matches -tournament_bookings -tournament_team")
+      .select(
+        "-_location -tournament_matches -tournament_bookings -tournament_team"
+      )
       .populate({
         path: "community_center",
         select: "name image address", // Only select these fields
@@ -385,10 +390,10 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
       })
       .exec();
 
-    const matchIds = matches.map(match => match._id);
+    const matchIds = matches.map((match) => match._id);
     const stats = await TournamentPlayerMatchStat.find({
       tournament: tournamentId,
-      match: { $in: matchIds }
+      match: { $in: matchIds },
     });
 
     // Organize stats by matchId and playerId
@@ -401,11 +406,11 @@ const getMatchesByTournament = asyncHandler(async (req, res) => {
     }, {});
 
     // Add stats to the players in the matches
-    matches.forEach(match => {
-      match.team_A.players.forEach(player => {
+    matches.forEach((match) => {
+      match.team_A.players.forEach((player) => {
         player.stats = statsMap[match._id]?.[player.user._id] || {};
       });
-      match.team_B.players.forEach(player => {
+      match.team_B.players.forEach((player) => {
         player.stats = statsMap[match._id]?.[player.user._id] || {};
       });
     });
@@ -457,13 +462,20 @@ const getBookingsByTournament = asyncHandler(async (req, res) => {
   try {
     const { tournamentId, status } = req.query;
     if (!tournamentId || !status) {
-      errorResponse(res, "Tournament id / status is required", statusCodes.BAD_REQUEST);
+      errorResponse(
+        res,
+        "Tournament id / status is required",
+        statusCodes.BAD_REQUEST
+      );
     }
-    const findTournament = await Tournament.findById(tournamentId).select("-_location -tournament_matches -tournament_bookings -tournament_team")
-    .populate({
-      path: "community_center",
-      select: "name image address", // Only select these fields
-    });
+    const findTournament = await Tournament.findById(tournamentId)
+      .select(
+        "-_location -tournament_matches -tournament_bookings -tournament_team"
+      )
+      .populate({
+        path: "community_center",
+        select: "name image address", // Only select these fields
+      });
     const bookings = await TournamentBooking.find({
       tournament: tournamentId,
       status: status,
@@ -474,21 +486,25 @@ const getBookingsByTournament = asyncHandler(async (req, res) => {
 
     const data = {
       tournament: findTournament,
-      bookings
-    }
+      bookings,
+    };
     successResponse(res, data, statusCodes.OK);
   } catch (error) {
     errorResponse(res, err.message, statusCodes.INTERNAL_SERVER_ERROR);
   }
 });
 
-//Add or update tournament player stat 
+//Add or update tournament player stat
 const addOrUpdateTournamentPlayerMatchStat = asyncHandler(async (req, res) => {
   try {
     // Validate request body using Joi or a similar library
     const { error } = TournamentPlayerMatchStatsSchema.validate(req.body);
     if (error) {
-      return errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+      return errorResponse(
+        res,
+        error.details[0].message,
+        statusCodes.BAD_REQUEST
+      );
     }
 
     // Check if player exists
@@ -507,26 +523,30 @@ const addOrUpdateTournamentPlayerMatchStat = asyncHandler(async (req, res) => {
     let playerMatchStats = await TournamentPlayerMatchStat.findOne({
       player: req.body.player,
       match: req.body.match,
-      tournament: req.body.tournament
+      tournament: req.body.tournament,
     });
 
     if (playerMatchStats) {
       // Update player match stats, excluding match and player ObjectId from the update
       Object.entries(req.body).forEach(([key, value]) => {
-        if (key !== 'player' && key !== 'match') {
+        if (key !== "player" && key !== "match") {
           playerMatchStats[key] = value;
         }
       });
 
       await playerMatchStats.save();
-      return successResponse(res, {
-        message: "Player match stats updated successfully",
-        data: playerMatchStats
-      }, statusCodes.OK);
+      return successResponse(
+        res,
+        {
+          message: "Player match stats updated successfully",
+          data: playerMatchStats,
+        },
+        statusCodes.OK
+      );
     } else {
       // Create new player match stats, excluding direct assignment of match and player ObjectId
       const newStats = { ...req.body };
-      delete newStats.match;  // Avoid directly setting the match ID
+      delete newStats.match; // Avoid directly setting the match ID
       delete newStats.player; // Avoid directly setting the player ID
       delete newStats.tournament; // Avoid directly setting the player ID
 
@@ -536,14 +556,22 @@ const addOrUpdateTournamentPlayerMatchStat = asyncHandler(async (req, res) => {
       playerMatchStats.tournament = req.body.tournament; // Set player ID securely
       await playerMatchStats.save();
 
-      return successResponse(res, {
-        message: "Player match stats created successfully",
-        data: playerMatchStats
-      }, statusCodes.CREATED);
+      return successResponse(
+        res,
+        {
+          message: "Player match stats created successfully",
+          data: playerMatchStats,
+        },
+        statusCodes.CREATED
+      );
     }
   } catch (err) {
     console.error("Error adding/updating player match stats:", err);
-    return errorResponse(res, "Internal Server Error", statusCodes.INTERNAL_SERVER_ERROR);
+    return errorResponse(
+      res,
+      "Internal Server Error",
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
   }
 });
 
@@ -560,87 +588,137 @@ const changeTournamentMatchStatus = asyncHandler(async (req, res) => {
     }
 
     const { id, status } = req.body;
-    if(status === MatchStatus.FINISHED){
+    if (status === MatchStatus.FINISHED) {
       let match = await updateTournamentMatchWinner(id);
       successResponse(res, match, statusCodes.OK);
-    }
-    else {
+    } else {
+      // Find the match by ID
+      const match = await TournamentMatches.findById(id);
 
-    
-
-    // Find the match by ID
-    const match = await TournamentMatches.findById(id);
-
-    if (!match) {
-      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
-    }
-    
-
-    // Update the match status using the schema method
-    match.status = status;
-    await match.save();
-
-    let data = { message: "Match status updated successfully.", match };
-    setTimeout(() => {
-      if (status === MatchStatus.ONGOING) {
-        sendMatchStartPaymentInfo(
-          match.community_center,
-          match.startTime,
-          match.endTime,
-          match.match_date
-        );
+      if (!match) {
+        return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
       }
-    }, 3000);
-    successResponse(res, data, statusCodes.OK);
-  }
+
+      // Update the match status using the schema method
+      match.status = status;
+      await match.save();
+
+      let data = { message: "Match status updated successfully.", match };
+      setTimeout(() => {
+        if (status === MatchStatus.ONGOING) {
+          sendMatchStartPaymentInfo(
+            match.community_center,
+            match.startTime,
+            match.endTime,
+            match.match_date
+          );
+        }
+      }, 3000);
+      successResponse(res, data, statusCodes.OK);
+    }
   } catch (error) {
-    return errorResponse(
-      res,
-      error.message,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
   }
 });
 
 //get player overall ranking in tournament
-const getPlayerRankingsWithinTournament =  asyncHandler( async(req, res) => {
+const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
   try {
-    const {tournamentId} = req.query
+    const { tournamentId } = req.query;
+    if (!tournamentId) {
+      return errorResponse(
+        res,
+        "Tournament id is required.",
+        statusCodes.BAD_REQUEST
+      );
+    }
     const playerRankings = await TournamentPlayerMatchStat.aggregate([
       {
-        $match: { tournament: new mongoose.Types.ObjectId(tournamentId) } // Match specific tournament
+        $match: { tournament: new mongoose.Types.ObjectId(tournamentId) }, // Match specific tournament
       },
       {
         $group: {
           _id: "$player",
-          totalPoints: { $sum: "$pointsScored" }
-        }
+          totalPoints: { $sum: "$pointsScored" },
+        },
       },
       {
-        $sort: { totalPoints: -1 }
-      }
+        $sort: { totalPoints: -1 },
+      },
     ]);
 
     // Now fetch user details for each player
-    const rankedPlayers = await Promise.all(playerRankings.map(async (ranking, index) => {
-      const playerDetails = await User.findById(ranking._id);
-      return {
-        rank: index + 1, // Rank within the tournament
-        firstName: playerDetails.firstName,
-        lastName: playerDetails.lastName,
-        email: playerDetails.email,
-        profilePhoto: playerDetails.profilePhoto, // Assuming you have a 'profilePhoto' field in your User model
-        totalPoints: ranking.totalPoints
-      };
-    }));
+    const rankedPlayers = await Promise.all(
+      playerRankings.map(async (ranking, index) => {
+        const playerDetails = await User.findById(ranking._id);
+        return {
+          rank: index + 1, // Rank within the tournament
+          firstName: playerDetails.firstName,
+          lastName: playerDetails.lastName,
+          email: playerDetails.email,
+          profilePhoto: playerDetails.profilePhoto, // Assuming you have a 'profilePhoto' field in your User model
+          totalPoints: ranking.totalPoints,
+        };
+      })
+    );
 
-    successResponse(res, rankedPlayers, statusCodes.OK)
+    successResponse(res, rankedPlayers, statusCodes.OK);
   } catch (err) {
     console.error("Error getting player rankings within tournament:", err);
     throw err;
   }
-})
+});
 
+//get tournament overall stats
+const getTournamentStats = asyncHandler(async (req, res) => {
+  try {
+    const { tournamentId } = req.query;
+    if (!tournamentId) {
+      return errorResponse(
+        res,
+        "Tournament id is required.",
+        statusCodes.BAD_REQUEST
+      );
+    }
+    // Retrieve matches and populate team details
+    const matches = await TournamentMatches.find({
+      tournament: new mongoose.Types.ObjectId(tournamentId),
+    })
+      .populate("team_A")
+      .populate("team_B")
+      .lean();
+
+    // Calculate scores and determine winners
+    const matchResults = matches.map((match) => {
+      const teamAScore = match.team_A.matchScore || 0;
+      const teamBScore = match.team_B.matchScore || 0;
+      const teamAWins = match.team_A.isWinner;
+      const teamBWins = match.team_B.isWinner;
+
+      return {
+        matchDate: match.match_date,
+        name: match.name,
+        status: match.status,
+        teamA: match.team_A.name,
+        teamB: match.team_B.name,
+        teamAScore,
+        teamBScore,
+        winner: teamAWins
+          ? match.team_A.name
+          : teamBWins
+          ? match.team_B.name
+          : null,
+        teamAWins,
+        teamBWins,
+      };
+    });
+
+    successResponse(res, matchResults, statusCodes.OK);
+  } catch (error) {
+    console.error("Error getting tournament stats: ", error);
+    throw error;
+  }
+});
 
 export {
   createTournament,
@@ -653,5 +731,6 @@ export {
   getBookingsByTournament,
   addOrUpdateTournamentPlayerMatchStat,
   changeTournamentMatchStatus,
-  getPlayerRankingsWithinTournament
+  getPlayerRankingsWithinTournament,
+  getTournamentStats,
 };
