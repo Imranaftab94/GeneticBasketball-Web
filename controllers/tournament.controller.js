@@ -720,6 +720,40 @@ const getTournamentStats = asyncHandler(async (req, res) => {
   }
 });
 
+//End Tournament
+const endTournament = asyncHandler(async (req, res) => {
+  const { tournamentId } = req.body
+
+  if (!tournamentId) {
+    errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
+    return;
+  }
+
+  try {
+    // Update the tournament status
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      tournamentId,
+      { status: TOURNAMENT_STATUS.COMPLETED },
+      { new: true }
+    );
+
+    if (!updatedTournament) {
+      return errorResponse(res, "Tournament not found", statusCodes.NOT_FOUND);
+    }
+
+    let data = {
+      message: "Tournament has been Ended successfully",
+    };
+    successResponse(res, data, statusCodes.OK);
+  } catch (error) {
+    errorResponse(
+      res,
+      error.message,
+      statusCodes.INTERNAL_SERVER_ERROR
+    );
+  }
+});
+
 export {
   createTournament,
   listTournaments,
@@ -733,4 +767,5 @@ export {
   changeTournamentMatchStatus,
   getPlayerRankingsWithinTournament,
   getTournamentStats,
+  endTournament
 };
