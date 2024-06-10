@@ -724,12 +724,12 @@ const getTournamentStats = asyncHandler(async (req, res) => {
 const endTournament = asyncHandler(async (req, res) => {
   const { tournamentId } = req.body
 
-  if (!tournamentId) {
-    errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
-    return;
-  }
 
   try {
+    
+  if (!tournamentId) {
+    errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
+  }
     // Update the tournament status
     const updatedTournament = await Tournament.findByIdAndUpdate(
       tournamentId,
