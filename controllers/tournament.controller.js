@@ -8,6 +8,7 @@ import {
   startTournamentValidationSchema,
   tournamentBookingValidationSchema,
   tournamentMatchSchemaValidator,
+  updateTournamentSchema,
 } from "../validators/tournament.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Tournament } from "../models/tournament.model.js";
@@ -722,19 +723,24 @@ const getTournamentStats = asyncHandler(async (req, res) => {
 
 //End Tournament
 const endTournament = asyncHandler(async (req, res) => {
-  const { tournamentId } = req.body
+  const { tournamentId } = req.body;
 
+  if (!tournamentId) {
+    return errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
+  }
 
   try {
-    
-  if (!tournamentId) {
-    errorResponse(res, "Tournament id is required", statusCodes.BAD_REQUEST);
-  }
+    // Find matches for the tournament
+    const findMatches = await TournamentMatches.find({ tournament: tournamentId }).lean(); // Use .lean() to get plain JavaScript objects
+
+    // Determine the new status based on the number of matches found
+    const newStatus = findMatches.length > 0 ? TOURNAMENT_STATUS.COMPLETED : TOURNAMENT_STATUS.ENDED;
+
     // Update the tournament status
     const updatedTournament = await Tournament.findByIdAndUpdate(
       tournamentId,
-      { status: TOURNAMENT_STATUS.COMPLETED },
-      { new: true }
+      { status: newStatus },
+      { new: true, lean: true } // Return a plain JavaScript object
     );
 
     if (!updatedTournament) {
@@ -742,15 +748,89 @@ const endTournament = asyncHandler(async (req, res) => {
     }
 
     let data = {
-      message: "Tournament has been Ended successfully",
+      message: "Tournament has been ended successfully",
+      updatedTournament,
     };
+    return successResponse(res, data, statusCodes.OK);
+  } catch (error) {
+    return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
+// update tournament
+const updateTournament = asyncHandler(async (req, res) => {
+  const { error } = updateTournamentSchema.validate(req.body);
+  if (error) {
+    return errorResponse(
+      res,
+      error.details[0].message,
+      statusCodes.BAD_REQUEST
+    );
+  }
+
+  try {
+    const {
+      tournamentId,
+      name,
+      location: { latitude, longitude },
+      startDate,
+      endDate,
+      maxPlayers,
+      ageGroup,
+      prize,
+      entryFee,
+      status,
+    } = req.body;
+
+    // Construct the update object
+    const updateData = {
+      name,
+      "location.latitude": latitude,
+      "location.longitude": longitude,
+      _location: {
+        type: "Point",
+        coordinates: [longitude, latitude],
+      },
+      startDate,
+      endDate,
+      maxPlayers,
+      ageGroup,
+      prize,
+      entryFee,
+      status,
+    };
+
+    // Remove undefined fields from the update object
+    Object.keys(updateData).forEach(
+      (key) =>
+        (updateData[key] === undefined ||
+          (typeof updateData[key] === "object" &&
+            Object.keys(updateData[key]).length === 0)) &&
+        delete updateData[key]
+    );
+
+    // Find the tournament by ID and update it
+    const tournament = await Tournament.findByIdAndUpdate(tournamentId, updateData, {
+      new: true, // Return the updated document
+      runValidators: true, // Validate the update operation
+    });
+
+    if (!tournament) {
+      return errorResponse(
+        res,
+        "Tournament not found.",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    let data = {
+      message: "Tournament has been updated successfully!",
+      tournament,
+    };
+
     successResponse(res, data, statusCodes.OK);
   } catch (error) {
-    errorResponse(
-      res,
-      error.message,
-      statusCodes.INTERNAL_SERVER_ERROR
-    );
+    return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
 
@@ -767,5 +847,6 @@ export {
   changeTournamentMatchStatus,
   getPlayerRankingsWithinTournament,
   getTournamentStats,
-  endTournament
+  endTournament,
+  updateTournament
 };

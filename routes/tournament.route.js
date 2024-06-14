@@ -13,7 +13,8 @@ import {
   listTournaments,
   listTournamentsUnderCommunity,
   updateTournamentAndBookings,
-  endTournament
+  endTournament,
+  updateTournament
 } from "../controllers/tournament.controller.js";
 
 const router = express.Router();
@@ -37,4 +38,7 @@ router
   router.route("/rankings").get(protect, getPlayerRankingsWithinTournament);
   router.route("/overAllStats").get(protect, getTournamentStats);
   router.route("/endTournament").post(protect, adminAndCommunity, endTournament);
+  router
+  .route("/updateTournament")
+  .post(protect, adminAndCommunity, updateTournament);
 export default router;
