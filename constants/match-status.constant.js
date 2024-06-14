@@ -14,6 +14,7 @@ const TOURNAMENT_STATUS = {
   ONGOING: 'Ongoing',
   COMPLETED: 'Completed',
   CANCELLED: 'Cancelled',
+  ENDED: 'Ended'
 };
 
 const PLAYER_TOURNAMENT_BOOKING_STATUS = {

@@ -80,10 +80,26 @@ const TournamentPlayerMatchStatsSchema = Joi.object({
   pointsScored: Joi.number().required(),
 });
 
+const updateTournamentSchema = Joi.object({
+  tournamentId: Joi.string().required(),
+  name: Joi.string().required(),
+  location: Joi.object({
+    latitude: Joi.number().required(),
+    longitude: Joi.number().required(),
+  }).required(),
+  startDate: Joi.date().required(),
+  endDate: Joi.date().required(),
+  maxPlayers: Joi.number().required(),
+  ageGroup: Joi.string().required(),
+  prize: Joi.string().required(),
+  entryFee: Joi.number().required(),
+});
+
 export {
   createTournamentSchema,
   tournamentBookingValidationSchema,
   startTournamentValidationSchema,
   tournamentMatchSchemaValidator,
-  TournamentPlayerMatchStatsSchema
+  TournamentPlayerMatchStatsSchema,
+  updateTournamentSchema
 };
