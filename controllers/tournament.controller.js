@@ -771,6 +771,7 @@ const updateTournament = asyncHandler(async (req, res) => {
   try {
     const {
       tournamentId,
+      community_center,
       name,
       location: { latitude, longitude },
       startDate,
@@ -779,12 +780,32 @@ const updateTournament = asyncHandler(async (req, res) => {
       ageGroup,
       prize,
       entryFee,
-      status,
     } = req.body;
+
+    // Find the tournament by ID
+    const tournament = await Tournament.findById(tournamentId);
+
+    if (!tournament) {
+      return errorResponse(
+        res,
+        "Tournament not found.",
+        statusCodes.NOT_FOUND
+      );
+    }
+
+    // Check if the tournament status is UPCOMING
+    if (tournament.status !== TOURNAMENT_STATUS.UPCOMING) {
+      return errorResponse(
+        res,
+        "Tournament can only be updated if it's not started.",
+        statusCodes.BAD_REQUEST
+      );
+    }
 
     // Construct the update object
     const updateData = {
       name,
+      community_center,
       "location.latitude": latitude,
       "location.longitude": longitude,
       _location: {
@@ -797,7 +818,6 @@ const updateTournament = asyncHandler(async (req, res) => {
       ageGroup,
       prize,
       entryFee,
-      status,
     };
 
     // Remove undefined fields from the update object
@@ -809,23 +829,19 @@ const updateTournament = asyncHandler(async (req, res) => {
         delete updateData[key]
     );
 
-    // Find the tournament by ID and update it
-    const tournament = await Tournament.findByIdAndUpdate(tournamentId, updateData, {
-      new: true, // Return the updated document
-      runValidators: true, // Validate the update operation
-    });
-
-    if (!tournament) {
-      return errorResponse(
-        res,
-        "Tournament not found.",
-        statusCodes.NOT_FOUND
-      );
-    }
+    // Update the tournament
+    const updatedTournament = await Tournament.findByIdAndUpdate(
+      tournamentId,
+      updateData,
+      {
+        new: true, // Return the updated document
+        runValidators: true, // Validate the update operation
+      }
+    );
 
     let data = {
       message: "Tournament has been updated successfully!",
-      tournament,
+      tournament: updatedTournament,
     };
 
     successResponse(res, data, statusCodes.OK);

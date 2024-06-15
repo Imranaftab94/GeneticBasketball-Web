@@ -82,6 +82,7 @@ const TournamentPlayerMatchStatsSchema = Joi.object({
 
 const updateTournamentSchema = Joi.object({
   tournamentId: Joi.string().required(),
+  community_center: Joi.string().required(),
   name: Joi.string().required(),
   location: Joi.object({
     latitude: Joi.number().required(),
