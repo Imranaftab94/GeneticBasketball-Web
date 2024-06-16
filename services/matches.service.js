@@ -60,7 +60,22 @@ async function updateMatchWinner(matchId) {
 async function updateTournamentMatchWinner(matchId) {
   try {
     // Find the match
-    const match = await TournamentMatches.findById(matchId).populate('team_A team_B');
+    const match = await TournamentMatches.findById(matchId).populate({
+      path: "team_A",
+      select: "_id name players matchScore isWinner",
+      populate: {
+        path: "players.user",
+        select: "firstName lastName email profilePhoto coins", // Select player details from User model
+      },
+    }).populate({
+      path: "team_B",
+      select: "_id name players matchScore isWinner", // Only select these fields
+      populate: {
+        path: "players.user",
+        select: "firstName lastName email profilePhoto position", // Select player details from User model
+      },
+    })
+    .exec();
     if (!match) {
       throw new Error("Match not found");
     }
@@ -111,6 +126,24 @@ async function updateTournamentMatchWinner(matchId) {
 
     // Save the updated match
     const updatedMatch = await match.save();
+    const stats = await TournamentPlayerMatchStat.find({
+      match: matchId,
+    });
+
+    // Organize stats by matchId and playerId
+    const statsMap = stats.reduce((acc, stat) => {
+      if (!acc[stat.match]) {
+        acc[stat.match] = {};
+      }
+      acc[stat.match][stat.player] = stat;
+      return acc;
+    }, {});
+    match.team_A.players.forEach((player) => {
+      player.stats = statsMap[match._id]?.[player.user._id] || {};
+    });
+    match.team_B.players.forEach((player) => {
+      player.stats = statsMap[match._id]?.[player.user._id] || {};
+    });
 
     return updatedMatch;
   } catch (error) {
