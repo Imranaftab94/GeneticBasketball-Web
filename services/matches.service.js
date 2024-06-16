@@ -75,7 +75,7 @@ async function updateTournamentMatchWinner(matchId) {
         select: "firstName lastName email profilePhoto position", // Select player details from User model
       },
     })
-    .exec();;
+    .exec();
     if (!match) {
       throw new Error("Match not found");
     }
