@@ -747,11 +747,76 @@ const endTournament = asyncHandler(async (req, res) => {
       return errorResponse(res, "Tournament not found", statusCodes.NOT_FOUND);
     }
 
+    if (findMatches.length > 0) {
+    const findTournament = await Tournament.findById(tournamentId)
+      .select(
+        "-_location -tournament_matches -tournament_bookings -tournament_team"
+      )
+      .populate({
+        path: "community_center",
+        select: "name image address", // Only select these fields
+      });
+
+    const matches = await TournamentMatches.find({ tournament: tournamentId })
+      .populate({
+        path: "team_A",
+        select: "_id name players matchScore isWinner",
+        populate: {
+          path: "players.user",
+          select: "firstName lastName email profilePhoto coins", // Select player details from User model
+        },
+      })
+      .populate({
+        path: "team_B",
+        select: "_id name players matchScore isWinner", // Only select these fields
+        populate: {
+          path: "players.user",
+          select: "firstName lastName email profilePhoto position", // Select player details from User model
+        },
+      })
+      .exec();
+
+    const matchIds = matches.map((match) => match._id);
+    const stats = await TournamentPlayerMatchStat.find({
+      tournament: tournamentId,
+      match: { $in: matchIds },
+    });
+
+    // Organize stats by matchId and playerId
+    const statsMap = stats.reduce((acc, stat) => {
+      if (!acc[stat.match]) {
+        acc[stat.match] = {};
+      }
+      acc[stat.match][stat.player] = stat;
+      return acc;
+    }, {});
+
+    // Add stats to the players in the matches
+    matches.forEach((match) => {
+      match.team_A.players.forEach((player) => {
+        player.stats = statsMap[match._id]?.[player.user._id] || {};
+      });
+      match.team_B.players.forEach((player) => {
+        player.stats = statsMap[match._id]?.[player.user._id] || {};
+      });
+    });
+
+    let data = {
+      message: "Tournament has been ended successfully",
+      updatedTournament: findTournament,
+      matches: matches
+    };
+    return successResponse(res, data, statusCodes.OK);
+  }
+  else {
+
     let data = {
       message: "Tournament has been ended successfully",
       updatedTournament,
+      matches: findMatches
     };
     return successResponse(res, data, statusCodes.OK);
+  }
   } catch (error) {
     return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
   }
