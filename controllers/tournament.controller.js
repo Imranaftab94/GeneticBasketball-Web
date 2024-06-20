@@ -633,6 +633,8 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
         statusCodes.BAD_REQUEST
       );
     }
+
+    // Aggregate players based on the number of matches they participated in
     const playerRankings = await TournamentPlayerMatchStat.aggregate([
       {
         $match: { tournament: new mongoose.Types.ObjectId(tournamentId) }, // Match specific tournament
@@ -640,11 +642,11 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
       {
         $group: {
           _id: "$player",
-          totalPoints: { $sum: "$pointsScored" },
+          matchCount: { $sum: 1 }, // Count the number of matches each player participated in
         },
       },
       {
-        $sort: { totalPoints: -1 },
+        $sort: { matchCount: -1 }, // Sort by match count in descending order
       },
     ]);
 
@@ -658,7 +660,7 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
           lastName: playerDetails.lastName,
           email: playerDetails.email,
           profilePhoto: playerDetails.profilePhoto, // Assuming you have a 'profilePhoto' field in your User model
-          totalPoints: ranking.totalPoints,
+          matchCount: ranking.matchCount, // Number of matches the player participated in
         };
       })
     );
@@ -666,9 +668,10 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
     successResponse(res, rankedPlayers, statusCodes.OK);
   } catch (err) {
     console.error("Error getting player rankings within tournament:", err);
-    throw err;
+    errorResponse(res, err.message, statusCodes.BAD_REQUEST);
   }
 });
+
 
 //get tournament overall stats
 const getTournamentStats = asyncHandler(async (req, res) => {
