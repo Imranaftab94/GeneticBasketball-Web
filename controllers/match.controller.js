@@ -131,7 +131,7 @@ const createMatch = asyncHandler(async (req, res) => {
 const getMatchesBasedonUser = asyncHandler(async (req, res) => {
   try {
     // Retrieve matches where the user is in team_A or team_B
-    let playerUD = new mongoose.Types.ObjectId('66329ec35bfe93c738974907')
+    let playerUD = req.user._id
     const matches = await Matches.aggregate([
       {
         $match: {
