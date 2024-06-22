@@ -1,5 +1,5 @@
-import Joi from "joi";
-import { MatchStatus } from "../constants/match-status.constant.js";
+import Joi from 'joi'
+import { MatchStatus } from '../constants/match-status.constant.js'
 
 const teamSchema = Joi.object({
   name: Joi.string().required(),
@@ -10,8 +10,7 @@ const teamSchema = Joi.object({
       gersyNumber: Joi.number().required()
     })
   ).required()
-});
-
+})
 
 export const matchSchemaValidator = Joi.object({
   community_center: Joi.string().required(),
@@ -19,19 +18,20 @@ export const matchSchemaValidator = Joi.object({
   endTime: Joi.string().required(),
   name: Joi.string().required(),
   day: Joi.string()
-    .valid("MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN")
+    .valid('MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN')
     .required(),
   match_date: Joi.date().required(),
   team_A: teamSchema,
-  team_B: teamSchema,
-}).options({ abortEarly: false });
+  team_B: teamSchema
+}).options({ abortEarly: false })
 
 export const updateMatchStatusSchema = Joi.object({
   id: Joi.string().required(),
   status: Joi.string()
     .valid(...Object.values(MatchStatus))
     .required(),
-});
+  players: Joi.array().optional()
+})
 
 export const playerMatchStatsSchema = Joi.object({
   player: Joi.string().required(),
@@ -49,5 +49,5 @@ export const playerMatchStatsSchema = Joi.object({
   steals: Joi.number().required(),
   blocks: Joi.number().required(),
   turnovers: Joi.number().required(),
-  pointsScored: Joi.number().required(),
-});
+  pointsScored: Joi.number().required()
+})

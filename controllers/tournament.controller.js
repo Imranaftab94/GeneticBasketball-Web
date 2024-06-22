@@ -588,39 +588,62 @@ const changeTournamentMatchStatus = asyncHandler(async (req, res) => {
       );
     }
 
-    const { id, status } = req.body;
+    const { id, status, players } = req.body;
+
+    // Find the match by ID
+    const match = await TournamentMatches.findById(id).populate('team_A team_B');
+
+    if (!match) {
+      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+    }
+
     if (status === MatchStatus.FINISHED) {
-      let match = await updateTournamentMatchWinner(id);
-      successResponse(res, match, statusCodes.OK);
+      let updatedMatch = await updateTournamentMatchWinner(id);
+      successResponse(res, updatedMatch, statusCodes.OK);
     } else {
-      // Find the match by ID
-      const match = await TournamentMatches.findById(id);
-
-      if (!match) {
-        return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
-      }
-
-      // Update the match status using the schema method
+      // Update the match status
       match.status = status;
       await match.save();
 
-      let data = { message: "Match status updated successfully.", match };
-      setTimeout(() => {
-        if (status === MatchStatus.ONGOING) {
+      // If the match is starting, update the gersyNumber for players
+      if (status === MatchStatus.ONGOING && players && players.length > 0) {
+        const updateGersyNumber = async (team, players) => {
+          team.players = team.players.map(player => {
+            const updatedPlayer = players.find(p => p.user.toString() === player.user.toString());
+            if (updatedPlayer) {
+              player.gersyNumber = updatedPlayer.gersyNumber;
+            }
+            return player;
+          });
+
+          await team.save();
+        };
+
+        await Promise.all([
+          updateGersyNumber(match.team_A, players),
+          updateGersyNumber(match.team_B, players)
+        ]);
+
+        // Delay for 3 seconds before sending the start payment info
+        setTimeout(() => {
           sendMatchStartPaymentInfo(
             match.community_center,
             match.startTime,
             match.endTime,
             match.match_date
           );
-        }
-      }, 3000);
+        }, 3000);
+      }
+
+      let data = { message: "Match status updated successfully.", match };
       successResponse(res, data, statusCodes.OK);
     }
   } catch (error) {
+    console.log(error);
     return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
   }
 });
+
 
 //get player overall ranking in tournament
 const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
