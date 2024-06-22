@@ -918,6 +918,79 @@ const updateTournament = asyncHandler(async (req, res) => {
   }
 });
 
+
+//Get Matches based on user
+const getTournamentMatchesBasedOnUser = asyncHandler(async(req, res) => {
+  try {
+    const  playerUD = req.user._id
+    // Find teams where the player is present
+  const teams = await Team.find({
+   "players.user": playerUD
+ }).select("_id");
+ 
+ const teamIds = teams.map(team => team._id);
+ 
+ // Find matches where either team_A or team_B is in the teamIds
+ const _matches = await TournamentMatches.find({
+   $or: [
+     { team_A: { $in: teamIds } },
+     { team_B: { $in: teamIds } }
+   ]
+ })
+ .populate({
+  path: "tournament",
+  select: "-_location -tournament_matches -tournament_bookings -tournament_team",
+})
+   .populate({
+     path: "team_A",
+     select: "_id name players matchScore isWinner",
+     populate: {
+       path: "players.user",
+       select: "firstName lastName email profilePhoto coins",
+     },
+   })
+   .populate({
+     path: "team_B",
+     select: "_id name players matchScore isWinner",
+     populate: {
+       path: "players.user",
+       select: "firstName lastName email profilePhoto position",
+     },
+   })   .populate({
+     path: "community_center",
+     select: "name image address", // Only select these fields
+   })
+   .exec();
+ 
+ const matchIds = _matches.map((match) => match._id);
+ const stats = await TournamentPlayerMatchStat.find({
+   match: { $in: matchIds },
+ });
+ 
+ // Organize stats by matchId and playerId
+ const statsMap = stats.reduce((acc, stat) => {
+   if (!acc[stat.match]) {
+     acc[stat.match] = {};
+   }
+   acc[stat.match][stat.player] = stat;
+   return acc;
+ }, {});
+ 
+ // Add stats to the players in the matches
+ _matches.forEach((match) => {
+   match.team_A.players.forEach((player) => {
+     player.stats = statsMap[match._id]?.[player.user._id] || {};
+   });
+   match.team_B.players.forEach((player) => {
+     player.stats = statsMap[match._id]?.[player.user._id] || {};
+   });
+ });
+ successResponse(res, _matches, statusCodes.OK);
+  } catch (error) {
+    return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
+  }
+})
+
 export {
   createTournament,
   listTournaments,
@@ -932,5 +1005,6 @@ export {
   getPlayerRankingsWithinTournament,
   getTournamentStats,
   endTournament,
-  updateTournament
+  updateTournament,
+  getTournamentMatchesBasedOnUser
 };
