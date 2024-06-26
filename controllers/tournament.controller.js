@@ -588,39 +588,62 @@ const changeTournamentMatchStatus = asyncHandler(async (req, res) => {
       );
     }
 
-    const { id, status } = req.body;
+    const { id, status, players } = req.body;
+
+    // Find the match by ID
+    const match = await TournamentMatches.findById(id).populate('team_A team_B');
+
+    if (!match) {
+      return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+    }
+
     if (status === MatchStatus.FINISHED) {
-      let match = await updateTournamentMatchWinner(id);
-      successResponse(res, match, statusCodes.OK);
+      let updatedMatch = await updateTournamentMatchWinner(id);
+      successResponse(res, updatedMatch, statusCodes.OK);
     } else {
-      // Find the match by ID
-      const match = await TournamentMatches.findById(id);
-
-      if (!match) {
-        return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
-      }
-
-      // Update the match status using the schema method
+      // Update the match status
       match.status = status;
       await match.save();
 
-      let data = { message: "Match status updated successfully.", match };
-      setTimeout(() => {
-        if (status === MatchStatus.ONGOING) {
+      // If the match is starting, update the gersyNumber for players
+      if (status === MatchStatus.ONGOING && players && players.length > 0) {
+        const updateGersyNumber = async (team, players) => {
+          team.players = team.players.map(player => {
+            const updatedPlayer = players.find(p => p.user.toString() === player.user.toString());
+            if (updatedPlayer) {
+              player.gersyNumber = updatedPlayer.gersyNumber;
+            }
+            return player;
+          });
+
+          await team.save();
+        };
+
+        await Promise.all([
+          updateGersyNumber(match.team_A, players),
+          updateGersyNumber(match.team_B, players)
+        ]);
+
+        // Delay for 3 seconds before sending the start payment info
+        setTimeout(() => {
           sendMatchStartPaymentInfo(
             match.community_center,
             match.startTime,
             match.endTime,
             match.match_date
           );
-        }
-      }, 3000);
+        }, 3000);
+      }
+
+      let data = { message: "Match status updated successfully.", match };
       successResponse(res, data, statusCodes.OK);
     }
   } catch (error) {
+    console.log(error);
     return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
   }
 });
+
 
 //get player overall ranking in tournament
 const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
@@ -633,6 +656,8 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
         statusCodes.BAD_REQUEST
       );
     }
+
+    // Aggregate players based on the number of matches they participated in
     const playerRankings = await TournamentPlayerMatchStat.aggregate([
       {
         $match: { tournament: new mongoose.Types.ObjectId(tournamentId) }, // Match specific tournament
@@ -640,11 +665,11 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
       {
         $group: {
           _id: "$player",
-          totalPoints: { $sum: "$pointsScored" },
+          matchCount: { $sum: 1 }, // Count the number of matches each player participated in
         },
       },
       {
-        $sort: { totalPoints: -1 },
+        $sort: { matchCount: -1 }, // Sort by match count in descending order
       },
     ]);
 
@@ -658,7 +683,7 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
           lastName: playerDetails.lastName,
           email: playerDetails.email,
           profilePhoto: playerDetails.profilePhoto, // Assuming you have a 'profilePhoto' field in your User model
-          totalPoints: ranking.totalPoints,
+          matchCount: ranking.matchCount, // Number of matches the player participated in
         };
       })
     );
@@ -666,9 +691,10 @@ const getPlayerRankingsWithinTournament = asyncHandler(async (req, res) => {
     successResponse(res, rankedPlayers, statusCodes.OK);
   } catch (err) {
     console.error("Error getting player rankings within tournament:", err);
-    throw err;
+    errorResponse(res, err.message, statusCodes.BAD_REQUEST);
   }
 });
+
 
 //get tournament overall stats
 const getTournamentStats = asyncHandler(async (req, res) => {
@@ -915,6 +941,79 @@ const updateTournament = asyncHandler(async (req, res) => {
   }
 });
 
+
+//Get Matches based on user
+const getTournamentMatchesBasedOnUser = asyncHandler(async(req, res) => {
+  try {
+    const  playerUD = req.user._id
+    // Find teams where the player is present
+  const teams = await Team.find({
+   "players.user": playerUD
+ }).select("_id");
+ 
+ const teamIds = teams.map(team => team._id);
+ 
+ // Find matches where either team_A or team_B is in the teamIds
+ const _matches = await TournamentMatches.find({
+   $or: [
+     { team_A: { $in: teamIds } },
+     { team_B: { $in: teamIds } }
+   ]
+ })
+ .populate({
+  path: "tournament",
+  select: "-_location -tournament_matches -tournament_bookings -tournament_team",
+})
+   .populate({
+     path: "team_A",
+     select: "_id name players matchScore isWinner",
+     populate: {
+       path: "players.user",
+       select: "firstName lastName email profilePhoto coins",
+     },
+   })
+   .populate({
+     path: "team_B",
+     select: "_id name players matchScore isWinner",
+     populate: {
+       path: "players.user",
+       select: "firstName lastName email profilePhoto position",
+     },
+   })   .populate({
+     path: "community_center",
+     select: "name image address", // Only select these fields
+   })
+   .exec();
+ 
+ const matchIds = _matches.map((match) => match._id);
+ const stats = await TournamentPlayerMatchStat.find({
+   match: { $in: matchIds },
+ });
+ 
+ // Organize stats by matchId and playerId
+ const statsMap = stats.reduce((acc, stat) => {
+   if (!acc[stat.match]) {
+     acc[stat.match] = {};
+   }
+   acc[stat.match][stat.player] = stat;
+   return acc;
+ }, {});
+ 
+ // Add stats to the players in the matches
+ _matches.forEach((match) => {
+   match.team_A.players.forEach((player) => {
+     player.stats = statsMap[match._id]?.[player.user._id] || {};
+   });
+   match.team_B.players.forEach((player) => {
+     player.stats = statsMap[match._id]?.[player.user._id] || {};
+   });
+ });
+ successResponse(res, _matches, statusCodes.OK);
+  } catch (error) {
+    return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
+  }
+})
+
 export {
   createTournament,
   listTournaments,
@@ -929,5 +1028,6 @@ export {
   getPlayerRankingsWithinTournament,
   getTournamentStats,
   endTournament,
-  updateTournament
+  updateTournament,
+  getTournamentMatchesBasedOnUser
 };

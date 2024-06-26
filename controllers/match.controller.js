@@ -17,6 +17,8 @@ import mongoose from "mongoose";
 import { MatchStatus } from "../constants/match-status.constant.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
 import { updateMatchWinner } from "../services/matches.service.js";
+import { TournamentPlayerMatchStat } from "../models/tournament_player_stats.model.js";
+import { Team } from "../models/tournament_team.model.js";
 
 const createMatch = asyncHandler(async (req, res) => {
   const { error } = matchSchemaValidator.validate(req.body);
@@ -1022,14 +1024,15 @@ const addOrUpdatePlayerMatchStat = asyncHandler(async (req, res) => {
 
 const getPlayerOverallStats = asyncHandler(async (req, res) => {
   try {
-    if(!req.query.user){
-      errorResponse(res, 'User id is required.', statusCodes.BAD_REQUEST)
+    if (!req.query.user) {
+      errorResponse(res, 'User id is required.', statusCodes.BAD_REQUEST);
+      return;
     }
 
-    const playerId = new mongoose.Types.ObjectId(req.query.user)
+    const playerId = new mongoose.Types.ObjectId(req.query.user);
 
-    // Aggregate matches to get the total, won, and lost counts
-    const matches = await Matches.aggregate([
+    // Aggregate regular matches
+    const regularMatches = await Matches.aggregate([
       {
         $match: {
           status: MatchStatus.FINISHED,
@@ -1084,13 +1087,57 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
       },
     ]);
 
-    const matchStats = matches[0] || {
+    const regularMatchStats = regularMatches[0] || {
       totalMatches: 0,
       wonMatches: 0,
       lostMatches: 0,
     };
 
-    // Aggregate player match stats
+    // Aggregate tournament matches
+    const tournamentMatches = await Team.aggregate([
+      {
+        $match: {
+          "players.user": playerId,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          isWinner: "$isWinner",
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalMatches: { $sum: 1 },
+          wonMatches: {
+            $sum: {
+              $cond: { if: "$isWinner", then: 1, else: 0 },
+            },
+          },
+          lostMatches: {
+            $sum: {
+              $cond: { if: { $not: "$isWinner" }, then: 1, else: 0 },
+            },
+          },
+        },
+      },
+    ]);
+
+    const tournamentMatchStats = tournamentMatches[0] || {
+      totalMatches: 0,
+      wonMatches: 0,
+      lostMatches: 0,
+    };
+
+    // Combine regular match stats and tournament match stats
+    const combinedMatchStats = {
+      totalMatches: regularMatchStats.totalMatches + tournamentMatchStats.totalMatches,
+      wonMatches: regularMatchStats.wonMatches + tournamentMatchStats.wonMatches,
+      lostMatches: regularMatchStats.lostMatches + tournamentMatchStats.lostMatches,
+    };
+
+    // Aggregate regular player stats
     const playerStats = await PlayerMatchStats.aggregate([
       {
         $match: {
@@ -1118,7 +1165,7 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
       },
     ]);
 
-    const stats = playerStats[0] || {
+    const regularPlayerStats = playerStats[0] || {
       totalMinutesPlayed: 0,
       totalFieldGoalsMade: 0,
       totalFieldGoalsAttempted: 0,
@@ -1135,11 +1182,72 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
       totalPointsScored: 0,
     };
 
+    // Aggregate tournament player stats
+    const tournamentPlayerStats = await TournamentPlayerMatchStat.aggregate([
+      {
+        $match: {
+          player: playerId,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalFieldGoalsMade: { $sum: "$fieldGoalsMade" },
+          totalFieldGoalsAttempted: { $sum: "$fieldGoalsAttempted" },
+          totalThreePointersMade: { $sum: "$threePointersMade" },
+          totalThreePointersAttempted: { $sum: "$threePointersAttempted" },
+          totalFreeThrowsMade: { $sum: "$freeThrowsMade" },
+          totalFreeThrowsAttempted: { $sum: "$freeThrowsAttempted" },
+          totalOffensiveRebounds: { $sum: "$offensiveRebounds" },
+          totalDefensiveRebounds: { $sum: "$rebounds" }, // Assuming rebounds include both offensive and defensive
+          totalAssists: { $sum: "$assists" },
+          totalSteals: { $sum: "$steals" },
+          totalBlocks: { $sum: "$blocks" },
+          totalTurnovers: { $sum: "$turnovers" },
+          totalPointsScored: { $sum: "$pointsScored" },
+        },
+      },
+    ]);
+
+    const tournamentPlayerStatsResult = tournamentPlayerStats[0] || {
+      totalFieldGoalsMade: 0,
+      totalFieldGoalsAttempted: 0,
+      totalThreePointersMade: 0,
+      totalThreePointersAttempted: 0,
+      totalFreeThrowsMade: 0,
+      totalFreeThrowsAttempted: 0,
+      totalOffensiveRebounds: 0,
+      totalDefensiveRebounds: 0,
+      totalAssists: 0,
+      totalSteals: 0,
+      totalBlocks: 0,
+      totalTurnovers: 0,
+      totalPointsScored: 0,
+    };
+
+    // Combine regular player stats and tournament player stats
+    const combinedPlayerStats = {
+      totalMinutesPlayed: regularPlayerStats.totalMinutesPlayed, // No minutes played field in tournament stats
+      totalFieldGoalsMade: regularPlayerStats.totalFieldGoalsMade + tournamentPlayerStatsResult.totalFieldGoalsMade,
+      totalFieldGoalsAttempted: regularPlayerStats.totalFieldGoalsAttempted + tournamentPlayerStatsResult.totalFieldGoalsAttempted,
+      totalThreePointersMade: regularPlayerStats.totalThreePointersMade + tournamentPlayerStatsResult.totalThreePointersMade,
+      totalThreePointersAttempted: regularPlayerStats.totalThreePointersAttempted + tournamentPlayerStatsResult.totalThreePointersAttempted,
+      totalFreeThrowsMade: regularPlayerStats.totalFreeThrowsMade + tournamentPlayerStatsResult.totalFreeThrowsMade,
+      totalFreeThrowsAttempted: regularPlayerStats.totalFreeThrowsAttempted + tournamentPlayerStatsResult.totalFreeThrowsAttempted,
+      totalOffensiveRebounds: regularPlayerStats.totalOffensiveRebounds + tournamentPlayerStatsResult.totalOffensiveRebounds,
+      totalDefensiveRebounds: regularPlayerStats.totalDefensiveRebounds + tournamentPlayerStatsResult.totalDefensiveRebounds,
+      totalAssists: regularPlayerStats.totalAssists + tournamentPlayerStatsResult.totalAssists,
+      totalSteals: regularPlayerStats.totalSteals + tournamentPlayerStatsResult.totalSteals,
+      totalBlocks: regularPlayerStats.totalBlocks + tournamentPlayerStatsResult.totalBlocks,
+      totalTurnovers: regularPlayerStats.totalTurnovers + tournamentPlayerStatsResult.totalTurnovers,
+      totalPointsScored: regularPlayerStats.totalPointsScored + tournamentPlayerStatsResult.totalPointsScored,
+    };
+
     const response = {
-      totalMatches: matchStats.totalMatches,
-      wonMatches: matchStats.wonMatches,
-      lostMatches: matchStats.lostMatches,
-      ...stats,
+      totalMatches: combinedMatchStats.totalMatches,
+      wonMatches: combinedMatchStats.wonMatches,
+      lostMatches: combinedMatchStats.lostMatches,
+      ...combinedPlayerStats,
     };
 
     successResponse(res, response, statusCodes.OK);
@@ -1147,6 +1255,8 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
     errorResponse(res, error.message, statusCodes.BAD_REQUEST);
   }
 });
+
+
 
 
 const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {

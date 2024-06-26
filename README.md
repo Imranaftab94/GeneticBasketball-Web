@@ -18,7 +18,9 @@ Create a .env file in then root and add the following
 
 ```
 PORT = 8000
-MONGODB_URI = Use your mongodb uri here
+ENVIRONMENT = Development / Production
+DEV_MONGODB_URI = Development mongodb URI
+PROD_MONGODB_URI = Production mongodb URI
 JWT_SECRET = your jwt secret here
 YOUR_EMAIL= your email
 YOUR_PASS= your email password

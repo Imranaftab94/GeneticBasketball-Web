@@ -14,7 +14,8 @@ import {
   listTournamentsUnderCommunity,
   updateTournamentAndBookings,
   endTournament,
-  updateTournament
+  updateTournament,
+  getTournamentMatchesBasedOnUser
 } from "../controllers/tournament.controller.js";
 
 const router = express.Router();
@@ -41,4 +42,5 @@ router
   router
   .route("/updateTournament")
   .post(protect, adminAndCommunity, updateTournament);
+  router.route("/getTournamentMatchesBasedOnUser").get(protect, getTournamentMatchesBasedOnUser);
 export default router;

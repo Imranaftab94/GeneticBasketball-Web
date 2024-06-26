@@ -41,7 +41,6 @@ const teamSchema = Joi.object({
       Joi.object({
         user: Joi.string().required(),
         bookingId: Joi.string().required(),
-        gersyNumber: Joi.number().required(),
       })
     )
     .required(),
