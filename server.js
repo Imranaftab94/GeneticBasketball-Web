@@ -7,7 +7,7 @@ import userRoutes from "./routes/user.route.js";
 import communityRoutes from "./routes/community.route.js";
 import matchesRoutes from "./routes/match.route.js";
 import tournamentRoutes from "./routes/tournament.route.js";
-import promoRoutes from "./routes/promo.route.js"
+import promoRoutes from "./routes/promo.route.js";
 
 dotenv.config();
 connectDB();
