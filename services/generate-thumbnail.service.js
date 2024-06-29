@@ -16,7 +16,7 @@ async function generateThumbnailAndUpload(videoBuffer, outputFileName) {
     try {
       const awsConfiguration = await getAwsConfiguration();
       const s3Client = new S3Client({
-        region: 'us-east-1',
+        region: awsConfiguration.region,
         credentials: {
           accessKeyId: awsConfiguration.accessKeyId,
           secretAccessKey: awsConfiguration.secretAccessKey
