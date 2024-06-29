@@ -45,7 +45,23 @@ const matcheSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
-  },
+    highlights: {
+      type: new mongoose.Schema({
+        name: {
+          type: String,
+          default: null
+        },
+        awsUrl: {
+          type: String,
+          default: null
+        },
+        thumbnailImage: {
+          type: String,
+          default: null
+        }
+      }),
+      default: null
+  }},
   {
     timestamps: true,
   }

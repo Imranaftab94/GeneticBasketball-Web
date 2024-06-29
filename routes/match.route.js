@@ -13,7 +13,10 @@ import {
   getMatchesBasedonCommunity,
   getMatchesBasedonUser,
   getPlayerOverallStats,
+  uploadHighlights,
 } from "../controllers/match.controller.js";
+import multer from 'multer';
+const upload = multer().single('videoFrame');
 
 const router = express.Router();
 
@@ -32,5 +35,6 @@ router
 
 router.route("/playerOverAllStats").get(protect, getPlayerOverallStats);
 router.route("/getListBasedOnbooking").get(protect, getMatchesBasedonBookingId);
+router.route('/uploadHighlights').post(protect, admin,upload, uploadHighlights)
 
 export default router;
