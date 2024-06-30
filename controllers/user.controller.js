@@ -40,7 +40,7 @@ const registerUser = asyncHandler(async (req, res) => {
   if (referredBy) {
     const referredFrom = await User.findById(referredBy);
     if (referredFrom) {
-      coins = 10
+      coins = 1
     }
     else {
       errorResponse(
@@ -220,7 +220,7 @@ const socialAuth = asyncHandler(async (req, res) => {
   if (referredBy) {
     const referredFrom = await User.findById(referredBy);
     if (referredFrom) {
-      coins = 10
+      coins = 1
     }
     else {
       errorResponse(
