@@ -1,0 +1,9 @@
+[{
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "com.geneticbasketball.app",
+      "package_name": "com.geneticbasketball.app",
+      "sha256_cert_fingerprints":
+      ["B7:89:48:87:4D:B0:4D:CF:35:C2:87:C5:1E:94:9F:C1:E1:E0:AE:B7:CD:5D:B5:00:02:7A:91:F9:24:D3:ED:D4"]
+    }
+  }]

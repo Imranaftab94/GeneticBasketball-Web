@@ -8,6 +8,9 @@ import communityRoutes from "./routes/community.route.js";
 import matchesRoutes from "./routes/match.route.js";
 import tournamentRoutes from "./routes/tournament.route.js";
 import promoRoutes from "./routes/promo.route.js";
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import path from 'path';
 
 dotenv.config();
 connectDB();
@@ -25,7 +28,21 @@ app.use("/api/v1/promos", promoRoutes);
 
 const PORT = process.env.PORT || 9000;
 
+// Define __filename and __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+app.get('/assetlinks.json', (req, res) => {
+  const filePath = path.join(__dirname, 'public', 'assetlinks.json');
+  res.sendFile(filePath, (err) => {
+    if (err) {
+      console.error('Error while sending file:', err);
+      res.status(500).send('Error occurred while sending file');
+    }
+  });
+});
+
 app.listen(PORT, () => {
-    console.log(`Server is listening on port ${PORT}  `.bgBlue)
-    console.log(`Current environment is ${process.env.ENVIRONMENT}  `.bgBlue)
+  console.log(`Server is listening on port ${PORT}`.bgBlue);
+  console.log(`Current environment is ${process.env.ENVIRONMENT}`.bgBlue);
 });
