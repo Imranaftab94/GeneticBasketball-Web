@@ -32,7 +32,7 @@ const PORT = process.env.PORT || 9000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-app.get('/assetlinks.json', (req, res) => {
+app.get('/.well-known/assetlinks.json', (req, res) => {
   const filePath = path.join(__dirname, 'public', 'assetlinks.json');
   res.sendFile(filePath, (err) => {
     if (err) {
