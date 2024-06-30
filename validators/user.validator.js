@@ -5,6 +5,7 @@ export const registerUserSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().min(6).required(),
   fcmToken: Joi.string().allow("", null),
+  referredBy: Joi.string().optional().allow("", null)
 });
 
 //Apply Validation when updating profile
@@ -31,6 +32,7 @@ export const socailSignUpUserSchema = Joi.object({
   socialId: Joi.string().required(),
   socialPlatform: Joi.string().required(),
   fcmToken: Joi.string(),
+  referredBy: Joi.string().optional().allow("", null)
 });
 
 // send otp schema

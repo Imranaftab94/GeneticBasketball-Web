@@ -83,7 +83,12 @@ const userSchema = mongoose.Schema(
     coins:{
       type: Number,
       default: 0,
-    }
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
   {
     timestamps: true,

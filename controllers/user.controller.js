@@ -35,7 +35,21 @@ const registerUser = asyncHandler(async (req, res) => {
     errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     return;
   }
-  const { email, password, fcmToken } = req.body;
+  const { email, password, fcmToken, referredBy } = req.body;
+  var coins = 0;
+  if (referredBy) {
+    const referredFrom = await User.findById(referredBy);
+    if (referredFrom) {
+      coins = 10
+    }
+    else {
+      errorResponse(
+        res,
+        "Invalid referral id",
+        statusCodes.CONFLICT
+      );
+    }
+  }
   const userExists = await User.findOne({ email: email.toLowerCase() });
 
   if (userExists) {
@@ -52,6 +66,7 @@ const registerUser = asyncHandler(async (req, res) => {
     email: email.toLowerCase(),
     password,
     otpCode,
+    coins,
     fcmTokens: fcmToken ? [fcmToken] : [],
   });
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
@@ -193,13 +208,27 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users/socialAuth
 // @access  Public
 const socialAuth = asyncHandler(async (req, res) => {
-  const { socialId, socialPlatform, email, name, fcmToken } = req.body;
+  const { socialId, socialPlatform, email, name, fcmToken, referredBy } = req.body;
 
   // Validate request body
   const { error } = socailSignUpUserSchema.validate(req.body);
   if (error) {
     errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     return;
+  }
+  var coins = 0;
+  if (referredBy) {
+    const referredFrom = await User.findById(referredBy);
+    if (referredFrom) {
+      coins = 10
+    }
+    else {
+      errorResponse(
+        res,
+        "Invalid referral id",
+        statusCodes.CONFLICT
+      );
+    }
   }
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
@@ -244,6 +273,7 @@ const socialAuth = asyncHandler(async (req, res) => {
         lastName,
         socialId,
         socialPlatform,
+        coins,
         isEmailVerified: true,
         fcmTokens: fcmToken ? [fcmToken] : [],
       });
