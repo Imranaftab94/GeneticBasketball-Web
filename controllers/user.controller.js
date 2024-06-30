@@ -67,6 +67,7 @@ const registerUser = asyncHandler(async (req, res) => {
     password,
     otpCode,
     coins,
+    referredBy,
     fcmTokens: fcmToken ? [fcmToken] : [],
   });
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
@@ -274,6 +275,7 @@ const socialAuth = asyncHandler(async (req, res) => {
         socialId,
         socialPlatform,
         coins,
+        referredBy,
         isEmailVerified: true,
         fcmTokens: fcmToken ? [fcmToken] : [],
       });
