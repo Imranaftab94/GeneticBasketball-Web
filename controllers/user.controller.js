@@ -38,9 +38,13 @@ const registerUser = asyncHandler(async (req, res) => {
   const { email, password, fcmToken, referredBy } = req.body;
   var coins = 0;
   if (referredBy) {
-    const referredFrom = await User.findById(referredBy);
+    const referredFrom = await User.findByIdAndUpdate(
+      referredBy,
+      { $inc: { coins: 1 } },
+      { new: true }
+    );
     if (referredFrom) {
-      coins = 1
+      coins = 1;
     }
     else {
       errorResponse(
@@ -219,7 +223,11 @@ const socialAuth = asyncHandler(async (req, res) => {
   }
   var coins = 0;
   if (referredBy) {
-    const referredFrom = await User.findById(referredBy);
+    const referredFrom = await User.findByIdAndUpdate(
+      referredBy,
+      { $inc: { coins: 1 } },
+      { new: true }
+    );
     if (referredFrom) {
       coins = 1
     }
