@@ -91,7 +91,7 @@ const registerUser = asyncHandler(async (req, res) => {
     coins_value: coins,
     payment_id: user._id,
   });
-  await _newTransaction.save();
+  referredBy && await _newTransaction.save();
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   delete user._doc.otpCode;
@@ -322,7 +322,7 @@ const socialAuth = asyncHandler(async (req, res) => {
         coins_value: coins,
         payment_id: user._id,
       });
-      await _newTransaction.save();
+      referredBy && await _newTransaction.save();
 
       if (user) {
         let data = {
