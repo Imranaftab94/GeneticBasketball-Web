@@ -43,6 +43,15 @@ const registerUser = asyncHandler(async (req, res) => {
       { $inc: { coins: 1 } },
       { new: true }
     );
+        // Log the transaction in the Coins_History collection
+        const newTransaction = new Coins_History({
+          user: referredBy,
+          inapp_id: referredBy,
+          platform: 'Referal_From',
+          coins_value: 1,
+          payment_id: referredBy,
+        });
+        await newTransaction.save();
     if (referredFrom) {
       coins = 1;
     }
@@ -74,6 +83,15 @@ const registerUser = asyncHandler(async (req, res) => {
     referredBy,
     fcmTokens: fcmToken ? [fcmToken] : [],
   });
+   // Log the transaction in the Coins_History collection
+   const _newTransaction = new Coins_History({
+    user: user._id,
+    inapp_id: user._id,
+    platform: 'Referal_Used',
+    coins_value: coins,
+    payment_id: user._id,
+  });
+  await _newTransaction.save();
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   delete user._doc.otpCode;
@@ -228,6 +246,15 @@ const socialAuth = asyncHandler(async (req, res) => {
       { $inc: { coins: 1 } },
       { new: true }
     );
+     // Log the transaction in the Coins_History collection
+     const newTransaction = new Coins_History({
+      user: referredBy,
+      inapp_id: referredBy,
+      platform: 'Referal_From',
+      coins_value: 1,
+      payment_id: referredBy,
+    });
+    await newTransaction.save();
     if (referredFrom) {
       coins = 1
     }
@@ -287,6 +314,15 @@ const socialAuth = asyncHandler(async (req, res) => {
         isEmailVerified: true,
         fcmTokens: fcmToken ? [fcmToken] : [],
       });
+       // Log the transaction in the Coins_History collection
+       const _newTransaction = new Coins_History({
+        user: user._id,
+        inapp_id: user._id,
+        platform: 'Referal_Used',
+        coins_value: coins,
+        payment_id: user._id,
+      });
+      await _newTransaction.save();
 
       if (user) {
         let data = {
