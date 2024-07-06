@@ -37,6 +37,17 @@ const registerUser = asyncHandler(async (req, res) => {
   }
   const { email, password, fcmToken, referredBy } = req.body;
   var coins = 0;
+ 
+  const userExists = await User.findOne({ email: email.toLowerCase() });
+
+  if (userExists) {
+    errorResponse(
+      res,
+      "A user with same email already registered",
+      statusCodes.CONFLICT
+    );
+  }
+  else {
   if (referredBy) {
     const referredFrom = await User.findByIdAndUpdate(
       referredBy,
@@ -62,15 +73,6 @@ const registerUser = asyncHandler(async (req, res) => {
         statusCodes.CONFLICT
       );
     }
-  }
-  const userExists = await User.findOne({ email: email.toLowerCase() });
-
-  if (userExists) {
-    errorResponse(
-      res,
-      "A user with same email already registered",
-      statusCodes.CONFLICT
-    );
   }
 
   let otpCode = generateOTP(4);
@@ -106,9 +108,11 @@ const registerUser = asyncHandler(async (req, res) => {
     };
     successResponse(res, data, statusCodes.CREATED);
     await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
+
   } else {
     errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
   }
+}
 });
 
 // @desc    Auth user & get token
@@ -240,32 +244,6 @@ const socialAuth = asyncHandler(async (req, res) => {
     return;
   }
   var coins = 0;
-  if (referredBy) {
-    const referredFrom = await User.findByIdAndUpdate(
-      referredBy,
-      { $inc: { coins: 1 } },
-      { new: true }
-    );
-     // Log the transaction in the Coins_History collection
-     const newTransaction = new Coins_History({
-      user: referredBy,
-      inapp_id: referredBy,
-      platform: 'Referal_From',
-      coins_value: 1,
-      payment_id: referredBy,
-    });
-    await newTransaction.save();
-    if (referredFrom) {
-      coins = 1
-    }
-    else {
-      errorResponse(
-        res,
-        "Invalid referral id",
-        statusCodes.CONFLICT
-      );
-    }
-  }
   const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   if (socialPlatform.toLowerCase() === "apple" && !email) {
@@ -303,6 +281,33 @@ const socialAuth = asyncHandler(async (req, res) => {
       };
       successResponse(res, data, statusCodes.OK);
     } else {
+      if (referredBy) {
+        const referredFrom = await User.findByIdAndUpdate(
+          referredBy,
+          { $inc: { coins: 1 } },
+          { new: true }
+        );
+         // Log the transaction in the Coins_History collection
+         const newTransaction = new Coins_History({
+          user: referredBy,
+          inapp_id: referredBy,
+          platform: 'Referal_From',
+          coins_value: 1,
+          payment_id: referredBy,
+        });
+        await newTransaction.save();
+        if (referredFrom) {
+          coins = 1
+        }
+        else {
+          errorResponse(
+            res,
+            "Invalid referral id",
+            statusCodes.CONFLICT
+          );
+        }
+      }
+      
       const user = await User.create({
         email,
         firstName,
