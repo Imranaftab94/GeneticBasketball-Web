@@ -28,7 +28,7 @@ export const userSchema = Joi.object({
 //Apply For social signup
 export const socailSignUpUserSchema = Joi.object({
   email: Joi.string().allow(null, '').optional(),
-  name: Joi.string().required(),
+  name: Joi.string().allow("", null).optional(),
   socialId: Joi.string().required(),
   socialPlatform: Joi.string().required(),
   fcmToken: Joi.string(),
