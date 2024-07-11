@@ -5,6 +5,7 @@ import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
   matchSchemaValidator,
   playerMatchStatsSchema,
+  updateHighlightSchema,
   updateMatchStatusSchema,
 } from "../validators/match.validator.js";
 import { CommunityCenter } from "../models/community.model.js";
@@ -16,9 +17,10 @@ import {
 import mongoose from "mongoose";
 import { MatchStatus } from "../constants/match-status.constant.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
-import { updateMatchWinner } from "../services/matches.service.js";
+import { updateHighlights, updateMatchWinner } from "../services/matches.service.js";
 import { TournamentPlayerMatchStat } from "../models/tournament_player_stats.model.js";
 import { Team } from "../models/tournament_team.model.js";
+import { generateThumbnailAndUpload } from "../services/generate-thumbnail.service.js";
 
 const createMatch = asyncHandler(async (req, res) => {
   const { error } = matchSchemaValidator.validate(req.body);
@@ -206,6 +208,7 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
           endTime: 1,
           name: 1,
           match_score: 1,
+          highlights: { $ifNull: ["$highlights", null] },
           team_A: {
             name: 1,
             matchScore: 1,
@@ -474,6 +477,7 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
           endTime: 1,
           name: 1,
           match_score: 1,
+          highlights: { $ifNull: ["$highlights", null] },
           team_A: {
             name: 1,
             matchScore: 1,
@@ -780,6 +784,7 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
           endTime: 1,
           name: 1,
           match_score: 1,
+          highlights: { $ifNull: ["$highlights", null] },
           team_A: {
             name: 1,
             matchScore: 1,
@@ -1345,6 +1350,7 @@ const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
           endTime: 1,
           name: 1,
           match_score: 1,
+          highlights: { $ifNull: ["$highlights", null] },
           team_A: {
             name: 1,
             matchScore: 1,
@@ -1527,6 +1533,41 @@ const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Upload Match Higlights
+// @route   POST /api/v1/matches/uploadHighlights
+// @access  Private
+
+const uploadHighlights = asyncHandler(async (req, res) => {
+  try {
+    if (!req.file) {
+      return errorResponse(res, 'Video Frame is required', statusCodes.BAD_REQUEST);
+    }
+    const { error } = updateHighlightSchema.validate(req.body);
+  if (error) {
+    return errorResponse(
+      res,
+      error.details[0].message,
+      statusCodes.BAD_REQUEST
+    );
+  }
+    const file = req.file.buffer;
+    const { id, name, awsUrl } = req.body;
+  await generateThumbnailAndUpload(file, req.file.originalname).then(async _res => {
+    let highlights = {
+      name,
+      awsUrl,
+      thumbnailImage: _res, // Assuming generateThumbnailAndUpload returns relevant data
+    };
+    let response = await updateHighlights(id, highlights)
+    
+    successResponse(res, response, statusCodes.OK);
+  });
+  
+  } catch (error) {
+    return errorResponse(res, error.message, statusCodes.BAD_REQUEST);
+  }
+})
+
 
 
 
@@ -1539,5 +1580,6 @@ export {
   getAllMatchesWithinAdmin,
   addOrUpdatePlayerMatchStat,
   getPlayerOverallStats,
-  getMatchesBasedonBookingId
+  getMatchesBasedonBookingId,
+  uploadHighlights
 };

@@ -23,6 +23,7 @@ import {
 import { Roles } from "../constants/role.constant.js";
 import { CommunityCenter } from "../models/community.model.js";
 import { Coins_History } from "../models/coins_history.model.js";
+import { AwsKey } from "../models/Aws_key.model.js";
 
 // @desc    Register a new user
 // @route   POST /api/v1/users/register
@@ -34,7 +35,9 @@ const registerUser = asyncHandler(async (req, res) => {
     errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     return;
   }
-  const { email, password, fcmToken } = req.body;
+  const { email, password, fcmToken, referredBy } = req.body;
+  var coins = 0;
+ 
   const userExists = await User.findOne({ email: email.toLowerCase() });
 
   if (userExists) {
@@ -44,6 +47,33 @@ const registerUser = asyncHandler(async (req, res) => {
       statusCodes.CONFLICT
     );
   }
+  else {
+  if (referredBy) {
+    const referredFrom = await User.findByIdAndUpdate(
+      referredBy,
+      { $inc: { coins: 1 } },
+      { new: true }
+    );
+        // Log the transaction in the Coins_History collection
+        const newTransaction = new Coins_History({
+          user: referredBy,
+          inapp_id: referredBy,
+          platform: 'Referal_From',
+          coins_value: 1,
+          payment_id: referredBy,
+        });
+        await newTransaction.save();
+    if (referredFrom) {
+      coins = 1;
+    }
+    else {
+      errorResponse(
+        res,
+        "Invalid referral id",
+        statusCodes.CONFLICT
+      );
+    }
+  }
 
   let otpCode = generateOTP(4);
 
@@ -51,8 +81,20 @@ const registerUser = asyncHandler(async (req, res) => {
     email: email.toLowerCase(),
     password,
     otpCode,
+    coins,
+    referredBy,
     fcmTokens: fcmToken ? [fcmToken] : [],
   });
+   // Log the transaction in the Coins_History collection
+   const _newTransaction = new Coins_History({
+    user: user._id,
+    inapp_id: user._id,
+    platform: 'Referal_Used',
+    coins_value: coins,
+    payment_id: user._id,
+  });
+  referredBy && await _newTransaction.save();
+  const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   delete user._doc.otpCode;
 
@@ -62,12 +104,15 @@ const registerUser = asyncHandler(async (req, res) => {
         "For verification of your email, An OTP code has been sent to your email.",
       user: user._doc,
       token: generateToken(user._id),
+      awsConfiguration: awsConfiguration[0]
     };
     successResponse(res, data, statusCodes.CREATED);
     await sendMail(email, "OTP Verification", generateOTPEmailContent(otpCode));
+
   } else {
     errorResponse(res, "Invalid user data", statusCodes.BAD_REQUEST);
   }
+}
 });
 
 // @desc    Auth user & get token
@@ -94,6 +139,7 @@ const authUser = asyncHandler(async (req, res) => {
     errorResponse(res, "Invalid Password", statusCodes.UNAUTHORIZED);
     return;
   }
+  const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   if (
     user &&
@@ -111,6 +157,7 @@ const authUser = asyncHandler(async (req, res) => {
       message: "You have successfully Logged In.",
       user: user._doc,
       token: generateToken(user._id),
+      awsConfiguration: awsConfiguration[0]
     };
 
     successResponse(res, data, statusCodes.OK);
@@ -130,6 +177,7 @@ const authUser = asyncHandler(async (req, res) => {
         message: "You have successfully Logged In.",
         user: { ...community._doc, role: user.role },
         token: generateToken(user._id),
+        awsConfiguration: awsConfiguration[0]
       };
 
       successResponse(res, data, statusCodes.OK);
@@ -167,12 +215,14 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 
     // Save updated user
     const updatedUser = await user.save();
+    const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
     // Send response with updated user and token
     let data = {
       message: "Your profile has been successfully updated.",
       user: updatedUser,
       token: generateToken(updatedUser._id),
+      awsConfiguration: awsConfiguration[0]
     };
 
     successResponse(res, data, statusCodes.OK);
@@ -185,7 +235,7 @@ const updateUserProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/v1/users/socialAuth
 // @access  Public
 const socialAuth = asyncHandler(async (req, res) => {
-  const { socialId, socialPlatform, email, name, fcmToken } = req.body;
+  const { socialId, socialPlatform, email, name, fcmToken, referredBy } = req.body;
 
   // Validate request body
   const { error } = socailSignUpUserSchema.validate(req.body);
@@ -193,6 +243,8 @@ const socialAuth = asyncHandler(async (req, res) => {
     errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
     return;
   }
+  var coins = 0;
+  const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   if (socialPlatform.toLowerCase() === "apple" && !email) {
     const userExists = await User.findOne({ socialId: socialId });
@@ -200,6 +252,7 @@ const socialAuth = asyncHandler(async (req, res) => {
       message: "You have successfully Logged In.",
       user: userExists,
       token: generateToken(userExists._id),
+      awsConfiguration: awsConfiguration[0]
     };
     successResponse(res, data, statusCodes.OK);
   } else {
@@ -224,24 +277,64 @@ const socialAuth = asyncHandler(async (req, res) => {
         message: "You have successfully Logged In.",
         user: userExists,
         token: generateToken(userExists._id),
+        awsConfiguration: awsConfiguration[0]
       };
       successResponse(res, data, statusCodes.OK);
     } else {
+      if (referredBy) {
+        const referredFrom = await User.findByIdAndUpdate(
+          referredBy,
+          { $inc: { coins: 1 } },
+          { new: true }
+        );
+         // Log the transaction in the Coins_History collection
+         const newTransaction = new Coins_History({
+          user: referredBy,
+          inapp_id: referredBy,
+          platform: 'Referal_From',
+          coins_value: 1,
+          payment_id: referredBy,
+        });
+        await newTransaction.save();
+        if (referredFrom) {
+          coins = 1
+        }
+        else {
+          errorResponse(
+            res,
+            "Invalid referral id",
+            statusCodes.CONFLICT
+          );
+        }
+      }
+      
       const user = await User.create({
         email,
         firstName,
         lastName,
         socialId,
         socialPlatform,
+        coins,
+        referredBy,
         isEmailVerified: true,
         fcmTokens: fcmToken ? [fcmToken] : [],
       });
+       // Log the transaction in the Coins_History collection
+       const _newTransaction = new Coins_History({
+        user: user._id,
+        inapp_id: user._id,
+        platform: 'Referal_Used',
+        coins_value: coins,
+        payment_id: user._id,
+      });
+      referredBy && await _newTransaction.save();
 
       if (user) {
         let data = {
           message: "Your account has been successfully created.",
           user: user._doc,
           token: generateToken(user._id),
+          awsConfiguration: awsConfiguration[0]
         };
         successResponse(res, data, statusCodes.CREATED);
       } else {
@@ -368,6 +461,7 @@ const verifyAccountEmail = asyncHandler(async (req, res) => {
   }
   const { email, otpCode } = req.body;
   const user = await User.findOne({ email });
+  const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
 
   if (user && user.otpCode === otpCode) {
     user.otpCode = null;
@@ -377,6 +471,7 @@ const verifyAccountEmail = asyncHandler(async (req, res) => {
       message: "Your email has been successfully verified.",
       user: user,
       token: generateToken(user._id),
+      awsConfiguration: awsConfiguration[0]
     };
     successResponse(res, data, statusCodes.OK);
   } else if (user && user.otpCode !== otpCode) {
@@ -487,10 +582,12 @@ const addTopUpCoins = asyncHandler(async (req, res) => {
       payment_id,
     });
     await newTransaction.save();
+    const awsConfiguration = await AwsKey.find({}).select('-_id -createdAt -updatedAt')
     let data = {
       message: "Coin transaction recorded successfully.",
       user: foundUser,
       token: generateToken(foundUser._id),
+      awsConfiguration: awsConfiguration[0]
     };
     successResponse(res, data, statusCodes.CREATED);
   } catch (error) {

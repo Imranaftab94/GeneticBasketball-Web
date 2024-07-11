@@ -152,6 +152,41 @@ async function updateTournamentMatchWinner(matchId) {
   }
 }
 
+/**
+ * Update highlights for a match (tournament or simple).
+ *
+ * @param {string} matchId - The ID of the match to update.
+ * @param {Object} highlights - The highlights object containing name, awsUrl, and thumbnailImage.
+ * @returns {Promise<Object>} - The updated match object or an error message.
+ */
+const updateHighlights = async (matchId, highlights) => {
+  try {
+    // Check if the match exists in the tournament matches collection
+    let match = await TournamentMatches.findById(matchId);
+    if (match) {
+      // Update highlights for the tournament match
+      match.highlights = highlights;
+      await match.save();
+      return { message: "Highlights updated for tournament match", match };
+    }
+
+    // Check if the match exists in the simple matches collection
+    match = await Matches.findById(matchId);
+    if (match) {
+      // Update highlights for the simple match
+      match.highlights = highlights;
+      await match.save();
+      return { message: "Highlights updated for simple match", match };
+    }
+
+    // If match not found in either collection
+    return { message: "Match not found" };
+  } catch (error) {
+    console.error(error);
+    return { message: "An error occurred while updating highlights", error };
+  }
+};
 
 
-export { updateMatchWinner, updateTournamentMatchWinner };
+
+export { updateMatchWinner, updateTournamentMatchWinner, updateHighlights };

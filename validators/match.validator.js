@@ -51,3 +51,9 @@ export const playerMatchStatsSchema = Joi.object({
   turnovers: Joi.number().required(),
   pointsScored: Joi.number().required()
 })
+
+export const updateHighlightSchema = Joi.object({
+  id: Joi.string().required(),
+  awsUrl: Joi.string().required(),
+  name: Joi.string().required(),
+}).options({ abortEarly: false })
