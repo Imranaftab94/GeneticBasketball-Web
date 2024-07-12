@@ -60,3 +60,9 @@ export const coinTransactionSchema = Joi.object({
   coins_value: Joi.number().integer().min(1).required(), // coins_value should be a positive integer
   payment_id: Joi.string().allow("", null), // Payment ID can be empty or null, but must be a string if provided
 });
+
+export const ratingSchema = Joi.object({
+  userId: Joi.string().required(),
+  rating: Joi.number().min(1).max(5).required(),
+  matchId: Joi.string().required()
+});

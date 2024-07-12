@@ -6,6 +6,7 @@ import { errorResponse, successResponse } from "../helpers/response.helper.js";
 import {
   coinTransactionSchema,
   logoutFCMTokenSchema,
+  ratingSchema,
   registerUserSchema,
   sendOtpSchema,
   socailSignUpUserSchema,
@@ -600,6 +601,51 @@ const addTopUpCoins = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Add rating 
+// @route   POST /api/v1/users/addRating
+// @access  Private
+const addRating = asyncHandler(async (req, res) => {
+  const { error } = ratingSchema.validate(req.body);
+
+  if (error) {
+    return errorResponse(res, error.details[0].message, statusCodes.BAD_REQUEST);
+  }
+
+  const { userId, rating, matchId } = req.body;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return errorResponse(res, "User not found", statusCodes.NOT_FOUND);
+    }
+
+    // Check if the rating with the same userId and matchId already exists
+    const existingRating = user.ratings.find(
+      (r) => r.user.toString() === req.user._id.toString() && r.matchId === matchId
+    );
+
+    if (existingRating) {
+      return errorResponse(res, "Rating for this match already exists", statusCodes.BAD_REQUEST);
+    }
+
+    // Add the new rating to the user's ratings array
+    user.ratings.push({ rating, user: req.user._id, matchId });
+
+    // Recalculate the user's average rating
+    const totalRatings = user.ratings.length;
+    const sumRatings = user.ratings.reduce((acc, curr) => acc + curr.rating, 0);
+    user.rating = parseFloat((sumRatings / totalRatings).toFixed(1));
+
+    // Save the updated user
+    await user.save();
+
+    return successResponse(res, { message: "Rating added successfully", user }, statusCodes.OK);
+  } catch (error) {
+    return errorResponse(res, "Internal Server Error.", statusCodes.INTERNAL_SERVER_ERROR);
+  }
+});
+
 export {
   registerUser,
   authUser,
@@ -613,4 +659,5 @@ export {
   logoutFcmToken,
   deletUserAccount,
   addTopUpCoins,
+  addRating
 };

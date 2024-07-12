@@ -2,7 +2,24 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { Roles } from "../constants/role.constant.js";
 
-
+//Define rating/review schema
+const reviewSchema = mongoose.Schema(
+  {
+    rating: { type: Number, required: true },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      ref: 'User',
+    },
+    matchId: {
+      type: String,
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 // Define Schema for User
 const userSchema = mongoose.Schema(
@@ -88,6 +105,12 @@ const userSchema = mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       default: null,
+    },
+    ratings: [reviewSchema],
+    rating: {
+      type: Number,
+      required: true,
+      default: 0,
     },
   },
   {
