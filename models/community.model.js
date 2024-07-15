@@ -1,58 +1,58 @@
-import mongoose from "mongoose";
-import { BookingStatus } from "../constants/common.constant.js";
-const Schema = mongoose.Schema;
+import mongoose from 'mongoose'
+import { BookingStatus } from '../constants/common.constant.js'
+const Schema = mongoose.Schema
 
 // Define Booking Schema
 const bookingSchema = new Schema(
   {
     bookingDate: {
-      type: Date,
+      type: Date
     },
     bookedBy: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User'
     },
     status: {
       type: String,
-      default: BookingStatus.PENDING,
-    },
+      default: BookingStatus.PENDING
+    }
   },
   {
     timestamps: true, // Include timestamps for slots
   }
-);
+)
 
 // Define a schema for slots within communityTimeSlots
 const slotSchema = new Schema(
   {
     startTime: {
       type: String,
-      required: true,
+      required: true
     },
     endTime: {
       type: String,
-      required: true,
+      required: true
     },
-    bookings: [bookingSchema],
+    bookings: [bookingSchema]
   },
   {
     timestamps: true, // Include timestamps for slots
   }
-);
+)
 
 // Define a schema for communityTimeSlots
 const communityTimeSlotSchema = new Schema(
   {
     day: {
       type: String,
-      required: true,
+      required: true
     },
     slots: [slotSchema], // Array of slots with their own schema
   },
   {
     timestamps: true, // Include timestamps for communityTimeSlots
   }
-);
+)
 
 // Define Community Center Schema
 const communityCenterSchema = new Schema(
@@ -60,67 +60,67 @@ const communityCenterSchema = new Schema(
     name: {
       type: String,
       // required: true,
-      default: null,
+      default: null
     },
     email: {
       type: String,
       default: null,
-      // required: true,
+    // required: true,
     },
     image: {
       type: String,
       default: null, // Assuming you store the image URL
-      // required: true,
+    // required: true,
     },
     _location: {
       type: {
         type: String, // Must be 'Point' for GeoJSON
-        enum: ["Point"], // Only 'Point' is allowed
-        default: "Point",
-        // required: true,
+        enum: ['Point'], // Only 'Point' is allowed
+        default: 'Point',
+      // required: true,
       },
       coordinates: {
         type: [Number], // Array of numbers [longitude, latitude]
-        // required: true,
-      },
+      // required: true,
+      }
     },
     location: {
       latitude: {
         type: Number,
-        default: null,
+        default: null
       },
       longitude: {
         type: Number,
-        default: null,
-      },
+        default: null
+      }
     },
     address: {
       type: String,
       default: null,
-      // required: true,
+    // required: true,
     },
     description: {
       type: String,
-      default: null,
+      default: null
     },
     price: {
       type: Number,
-      default: 0,
+      default: 0
     },
     communityTimeSlots: [communityTimeSlotSchema],
     community_user: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User'
     }, // Reference to a single User model
   },
   {
-    timestamps: true,
+    timestamps: true
   }
-);
+)
 
 const CommunityCenter = mongoose.model(
-  "CommunityCenter",
+  'CommunityCenter',
   communityCenterSchema
-);
+)
 
-export { CommunityCenter };
+export { CommunityCenter }
