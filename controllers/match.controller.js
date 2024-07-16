@@ -23,6 +23,7 @@ import { Team } from "../models/tournament_team.model.js";
 import { generateThumbnailAndUpload } from "../services/generate-thumbnail.service.js";
 import { TournamentMatches } from "../models/tournament_match.model.js";
 import { Tournament } from "../models/tournament.model.js";
+import { BookingStatus } from "../constants/common.constant.js";
 
 const createMatch = asyncHandler(async (req, res) => {
   const { error } = matchSchemaValidator.validate(req.body);
@@ -1575,252 +1576,343 @@ const uploadHighlights = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/matches/scoreBoard
 // @access  Private
 const scoreBoard = asyncHandler(async (req, res) => {
-  const latitude = req.query.latitude ? parseFloat(req.query.latitude) : null;
-  const longitude = req.query.longitude ? parseFloat(req.query.longitude) : null;
-  const radius = req.query.radius ? parseFloat(req.query.radius) : null;
-  const searchTerm = req.query.searchTerm;
-  const matchDate = req.query.date ? new Date(req.query.date) : null;
+      // Fetch community centers for the player
+      // let playerId = new mongoose.Types.ObjectId('662ea34e5023bf752f5dd62b');
+      let playerId = req.user.id
+      
+      const communityCenters = await CommunityCenter.find({
+        'communityTimeSlots.slots.bookings.bookedBy': playerId
+      }).exec();
+  
+      const communityCenterIds = communityCenters.map(cc => cc._id);
+  const matches = await Matches.find({
+    community_center: { $in: communityCenterIds }, match_date: req.query.date || { $exists: true }
+  }).populate({
+    path: 'team_A',
+    select: 'isWinner'
+  }).populate({
+    path: 'team_B',
+    select: 'isWinner matchScore'
+  }).exec();
 
-  const communityQuery = {};
-  const matchQuery = {};
-  const tournamentMatchQuery = {};
-
-  // Geospatial search parameters
-  if (latitude && longitude && radius) {
-    communityQuery._location = {
-      $geoWithin: {
-        $centerSphere: [
-          [longitude, latitude],
-          radius / 3963.2, // Radius in radians (miles / Earth's radius in miles)
-        ],
-      },
-    };
-  }
-
-  // Search by name if searchTerm is provided
-  if (searchTerm) {
-    const searchRegex = new RegExp(searchTerm, "i");
-    communityQuery.$or = [{ name: searchRegex }];
-  }
-
-  // Match date filter
-  if (matchDate) {
-    matchQuery.match_date = matchDate;
-    tournamentMatchQuery.match_date = matchDate;
-  }
-
-  // Fetch communities
-  const communities = await CommunityCenter.find(communityQuery)
-    .sort({ createdAt: -1 })
-    .select("-communityTimeSlots -_location");
-
-  // Fetch matches for each community center
-  const communityMatchesPromises = communities.map(async (community) => {
-    const matches = await Matches.find({ community_center: community._id, ...matchQuery })
-      .populate({
-        path: 'team_A team_B',
-        populate: {
-          path: 'players.user',
-          select: 'name profilePhoto',
-        },
-      })
-      .sort({ createdAt: -1 });
-
-    return {
-      community,
-      matches: matches.map((match) => {
-        const topPlayers = {
-          topScorer: null,
-          topAssist: null,
-          topRebound: null,
-        };
-
-        const playerStats = {};
-
-        [match.team_A, match.team_B].forEach(team => {
-          team.players.forEach(player => {
-            const playerId = player.user._id;
-            if (!playerStats[playerId]) {
-              playerStats[playerId] = {
-                name: player.user.name,
-                profilePhoto: player.user.profilePhoto,
-                pointsScored: player.stats?.pointsScored || 0,
-                assists: player.stats?.assists || 0,
-                offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              };
-            }
-          });
-        });
-
-        const sortedPlayers = Object.values(playerStats);
-
-        // Determine top players
-        if (sortedPlayers.length > 0) {
-          topPlayers.topScorer = sortedPlayers.reduce((prev, curr) => prev.pointsScored > curr.pointsScored ? prev : curr);
-          topPlayers.topAssist = sortedPlayers.reduce((prev, curr) => prev.assists > curr.assists ? prev : curr);
-          topPlayers.topRebound = sortedPlayers.reduce((prev, curr) => prev.offensiveRebounds > curr.offensiveRebounds ? prev : curr);
-        }
-
-        return {
-          _id: match._id,
-          match_date: match.match_date, // Match date here
-          startTime: match.startTime,
-          endTime: match.endTime,
-          day: match.day,
-          status: match.status,
-          created_by: match.created_by,
-          highlights: match.highlights,
-          teams: {
-            team_A: {
-              name: match.team_A.name,
-              matchScore: match.team_A.matchScore,
-              isWinner: match.team_A.isWinner,
-              // players: match.team_A.players.map(player => ({
-              //   name: player.user.name,
-              //   profilePhoto: player.user.profilePhoto,
-              //   pointsScored: player.stats?.pointsScored || 0,
-              //   assists: player.stats?.assists || 0,
-              //   offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              // })),
-            },
-            team_B: {
-              name: match.team_B.name,
-              matchScore: match.team_B.matchScore,
-              isWinner: match.team_B.isWinner,
-              // players: match.team_B.players.map(player => ({
-              //   name: player.user.name,
-              //   profilePhoto: player.user.profilePhoto,
-              //   pointsScored: player.stats?.pointsScored || 0,
-              //   assists: player.stats?.assists || 0,
-              //   offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              // })),
-            },
-          },
-          topPlayers,
-        };
-      }),
-    };
+  const teams = await Team.find({
+    'players.user': playerId
   });
 
-  const communityMatches = await Promise.all(communityMatchesPromises);
+  if (!teams || teams.length === 0) {
+    throw new Error('Player not found in any team');
+  }
 
-  // Fetch tournament matches
-  const tournaments = await Tournament.find({}).populate({
-    path: "community_center",
-    select: "name image address", // Only select these fields
-  }); // Assuming you need to fetch tournaments as well
+  // Extract team IDs
+  const teamIds = teams.map(team => team._id);
 
-  const tournamentMatchesPromises = tournaments.map(async (tournament) => {
-    const matches = await TournamentMatches.find({ tournament: tournament._id, ...tournamentMatchQuery })
-      .populate({
-        path: 'team_A team_B',
-        populate: {
-          path: 'players.user',
-          select: 'name profilePhoto',
-        },
-      })
-      .sort({ createdAt: -1 });
+  // Find matches where any of these teams is either team_A or team_B
+  const tournament_matches = await TournamentMatches.find({
+    $or: [
+      { team_A: { $in: teamIds } },
+      { team_B: { $in: teamIds } }
+    ]
+  }).populate({
+    path: 'team_A',
+    select: 'name matchScore isWinner'
+  }).populate({
+    path: 'team_B',
+    select: 'name matchScore isWinner'
+  }).populate({
+    path: 'tournament',
+    select: 'name'
+  }).exec();
+  const matchesIdsForSimple = matches.map(match => match._id);
+  const matchesIdsForTournament = tournament_matches.map(match => match._id);
+  let matchStat = await getMatchStatistics(matchesIdsForSimple);
+let tournamentMatchStat = await getMatchStatisticsTournament(matchesIdsForTournament);
+const bookings = await addMatchTypeToBookings(communityCenters, playerId);
 
-    return {
-      tournament,
-      matches: matches.map(match => {
-        const topPlayers = {
-          topScorer: null,
-          topAssist: null,
-          topRebound: null,
-        };
+// Combine match statistics
+let combinedStats = [...matchStat, ...tournamentMatchStat];
 
-        const playerStats = {};
+// Combine matches and sort by createdAt in descending order
+let combineMatches = [...matches, ...tournament_matches].sort((a, b) => b.createdAt - a.createdAt).map(match => ({
+  ...match.toObject(), // Convert Mongoose document to plain object if needed
+  topPlayers: combinedStats.find(stat => stat.matchId.toString() === match._id.toString()) || null
+}));
 
-        [match.team_A, match.team_B].forEach(team => {
-          team.players.forEach(player => {
-            const playerId = player.user._id;
-            if (!playerStats[playerId]) {
-              playerStats[playerId] = {
-                name: player.user.name,
-                profilePhoto: player.user.profilePhoto,
-                pointsScored: player.stats?.pointsScored || 0,
-                assists: player.stats?.assists || 0,
-                offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              };
-            }
-          });
-        });
+// Combine matches and bookings
+let combineMatchesAndBookings = [...combineMatches, ...bookings];
 
-        const sortedPlayers = Object.values(playerStats);
+// Format the final response
+let formattedResponse = communityCenters.map(communityCenter => ({
+  name: communityCenter.name,
+  _id: communityCenter._id,
+  image: communityCenter.image,
+  matches: combineMatchesAndBookings.filter(cobm => cobm => cobm.community_center === communityCenter._id ) // Filter by community center
+}));
 
-        // Determine top players for tournament matches
-        if (sortedPlayers.length > 0) {
-          topPlayers.topScorer = sortedPlayers.reduce((prev, curr) => prev.pointsScored > curr.pointsScored ? prev : curr);
-          topPlayers.topAssist = sortedPlayers.reduce((prev, curr) => prev.assists > curr.assists ? prev : curr);
-          topPlayers.topRebound = sortedPlayers.reduce((prev, curr) => prev.offensiveRebounds > curr.offensiveRebounds ? prev : curr);
-        }
-
-        return {
-          _id: match._id,
-          match_date: match.match_date, // Match date here
-          startTime: match.startTime,
-          endTime: match.endTime,
-          day: match.day,
-          status: match.status,
-          created_by: match.created_by,
-          highlights: match.highlights,
-          teams: {
-            team_A: {
-              name: match.team_A.name,
-              matchScore: match.team_A.matchScore,
-              isWinner: match.team_A.isWinner,
-              // players: match.team_A.players.map(player => ({
-              //   name: player.user.name,
-              //   profilePhoto: player.user.profilePhoto,
-              //   pointsScored: player.stats?.pointsScored || 0,
-              //   assists: player.stats?.assists || 0,
-              //   offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              // })),
-            },
-            team_B: {
-              name: match.team_B.name,
-              matchScore: match.team_B.matchScore,
-              isWinner: match.team_B.isWinner,
-              // players: match.team_B.players.map(player => ({
-              //   name: player.user.name,
-              //   profilePhoto: player.user.profilePhoto,
-              //   pointsScored: player.stats?.pointsScored || 0,
-              //   assists: player.stats?.assists || 0,
-              //   offensiveRebounds: player.stats?.offensiveRebounds || 0,
-              // })),
-            },
-          },
-          topPlayers,
-        };
-      }),
-    };
-  });
-
-  const tournamentMatches = await Promise.all(tournamentMatchesPromises);
-
-  const combinedMatches = [
-    ...communityMatches.map(community => ({
-      ...community,
-      type: 'community', // Add type for identification
-    })),
-    ...tournamentMatches.map(tournament => ({
-      ...tournament,
-      type: 'tournament', // Add type for identification
-    })),
-  ];
   
-  // Sort by createdAt (assuming the relevant date is within community or tournament object)
-  combinedMatches.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   
-  const message = `Communities and tournaments with matches fetched successfully.`;
-  const data = {
-    message,
-    matches: combinedMatches,
-  };
-  
-  successResponse(res, combinedMatches, statusCodes.OK);
+  successResponse(res, formattedResponse, statusCodes.OK);
 });
+
+const getMatchStatistics = async (matchIds) => {
+  try {
+    const results = await PlayerMatchStats.aggregate([
+      { $match: { match: { $in: matchIds } } },
+      {
+        $group: {
+          _id: "$match",
+          topScorerStat: { $max: { $cond: [{ $ne: ["$pointsScored", null] }, { pointsScored: "$pointsScored", player: "$player" }, null] } },
+          topFieldGoalsAttemptedStat: { $max: { $cond: [{ $ne: ["$fieldGoalsAttempted", null] }, { fieldGoalsAttempted: "$fieldGoalsAttempted", player: "$player" }, null] } },
+          topDefensiveReboundsStat: { $max: { $cond: [{ $ne: ["$defensiveRebounds", null] }, { defensiveRebounds: "$defensiveRebounds", player: "$player" }, null] } }
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topScorerStat.player",
+          foreignField: "_id",
+          as: "topScorerUser"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topFieldGoalsAttemptedStat.player",
+          foreignField: "_id",
+          as: "topFieldGoalsAttemptedUser"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topDefensiveReboundsStat.player",
+          foreignField: "_id",
+          as: "topDefensiveReboundsUser"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          match: "$_id",
+          topScorer: {
+            pointsScored: "$topScorerStat.pointsScored",
+            user: {
+              $cond: {
+                if: { $gt: ["$topScorerStat.pointsScored", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topScorerUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topScorerUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topScorerUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topScorerUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topScorerUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topScorerUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          },
+          topFieldGoalsAttempted: {
+            fieldGoalsAttempted: "$topFieldGoalsAttemptedStat.fieldGoalsAttempted",
+            user: {
+              $cond: {
+                if: { $gt: ["$topFieldGoalsAttemptedStat.fieldGoalsAttempted", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topFieldGoalsAttemptedUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          },
+          topDefensiveRebounds: {
+            defensiveRebounds: "$topDefensiveReboundsStat.defensiveRebounds",
+            user: {
+              $cond: {
+                if: { $gt: ["$topDefensiveReboundsStat.defensiveRebounds", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topDefensiveReboundsUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topDefensiveReboundsUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topDefensiveReboundsUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topDefensiveReboundsUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topDefensiveReboundsUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topDefensiveReboundsUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    // Ensure all matches have the necessary fields, including null values if no data exists
+    const formattedResults = results.map(result => ({
+      matchId: result._id,
+      topScorer: result.topScorer.pointsScored > 0 ? {
+        pointsScored: result.topScorer.pointsScored,
+        user: result.topScorer.user
+      } : null,
+      topFieldGoalsAttempted: result.topFieldGoalsAttempted.fieldGoalsAttempted > 0 ? {
+        fieldGoalsAttempted: result.topFieldGoalsAttempted.fieldGoalsAttempted,
+        user: result.topFieldGoalsAttempted.user
+      } : null,
+      topDefensiveRebounds: result.topDefensiveRebounds.defensiveRebounds > 0 ? {
+        defensiveRebounds: result.topDefensiveRebounds.defensiveRebounds,
+        user: result.topDefensiveRebounds.user
+      } : null
+    }));
+
+    return formattedResults;
+  } catch (error) {
+    console.error("Error fetching match statistics:", error);
+    throw new Error("Unable to fetch match statistics");
+  }
+};
+
+const getMatchStatisticsTournament = async (matchIds) => {
+  try {
+    const results = await TournamentPlayerMatchStat.aggregate([
+      { $match: { match: { $in: matchIds } } },
+      {
+        $group: {
+          _id: "$match",
+          topScorerStat: { $max: { $cond: [{ $ne: ["$pointsScored", null] }, { pointsScored: "$pointsScored", player: "$player" }, null] } },
+          topFieldGoalsAttemptedStat: { $max: { $cond: [{ $ne: ["$fieldGoalsAttempted", null] }, { fieldGoalsAttempted: "$fieldGoalsAttempted", player: "$player" }, null] } },
+          topDefensiveReboundsStat: { $max: { $cond: [{ $ne: ["$defensiveRebounds", null] }, { defensiveRebounds: "$defensiveRebounds", player: "$player" }, null] } }
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topScorerStat.player",
+          foreignField: "_id",
+          as: "topScorerUser"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topFieldGoalsAttemptedStat.player",
+          foreignField: "_id",
+          as: "topFieldGoalsAttemptedUser"
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "topDefensiveReboundsStat.player",
+          foreignField: "_id",
+          as: "topDefensiveReboundsUser"
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          match: "$_id",
+          topScorer: {
+            pointsScored: "$topScorerStat.pointsScored",
+            user: {
+              $cond: {
+                if: { $gt: ["$topScorerStat.pointsScored", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topScorerUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topScorerUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topScorerUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topScorerUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topScorerUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topScorerUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          },
+          topFieldGoalsAttempted: {
+            fieldGoalsAttempted: "$topFieldGoalsAttemptedStat.fieldGoalsAttempted",
+            user: {
+              $cond: {
+                if: { $gt: ["$topFieldGoalsAttemptedStat.fieldGoalsAttempted", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topFieldGoalsAttemptedUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topFieldGoalsAttemptedUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          },
+          topDefensiveRebounds: {
+            defensiveRebounds: "$topDefensiveReboundsStat.defensiveRebounds",
+            user: {
+              $cond: {
+                if: { $gt: ["$topDefensiveReboundsStat.defensiveRebounds", 0] },
+                then: {
+                  _id: { $arrayElemAt: ["$topDefensiveReboundsUser._id", 0] },
+                  firstName: { $arrayElemAt: ["$topDefensiveReboundsUser.firstName", 0] },
+                  lastName: { $arrayElemAt: ["$topDefensiveReboundsUser.lastName", 0] },
+                  displayName: { $arrayElemAt: ["$topDefensiveReboundsUser.displayName", 0] },
+                  profilePhoto: { $arrayElemAt: ["$topDefensiveReboundsUser.profilePhoto", 0] },
+                  email: { $arrayElemAt: ["$topDefensiveReboundsUser.email", 0] }
+                },
+                else: null
+              }
+            }
+          }
+        }
+      }
+    ]);
+
+    // Ensure all matches have the necessary fields, including null values if no data exists
+    const formattedResults = results.map(result => ({
+      matchId: result._id,
+      topScorer: result.topScorer.pointsScored > 0 ? {
+        pointsScored: result.topScorer.pointsScored,
+        user: result.topScorer.user
+      } : null,
+      topFieldGoalsAttempted: result.topFieldGoalsAttempted.fieldGoalsAttempted > 0 ? {
+        fieldGoalsAttempted: result.topFieldGoalsAttempted.fieldGoalsAttempted,
+        user: result.topFieldGoalsAttempted.user
+      } : null,
+      topDefensiveRebounds: result.topDefensiveRebounds.defensiveRebounds > 0 ? {
+        defensiveRebounds: result.topDefensiveRebounds.defensiveRebounds,
+        user: result.topDefensiveRebounds.user
+      } : null
+    }));
+
+    return formattedResults;
+  } catch (error) {
+    console.error("Error fetching match statistics:", error);
+    throw new Error("Unable to fetch match statistics");
+  }
+};
+
+
+const addMatchTypeToBookings = (communityCenters, playerId) => {
+  return communityCenters.flatMap(center => {
+    return center.communityTimeSlots.flatMap(slot =>
+      slot.slots.flatMap(slotDetails =>
+        slotDetails.bookings
+          .filter(booking => booking.bookedBy.equals(playerId) && booking.status === "Pending")
+          .map(({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
+            community_center: center._id,  // Use center._id for the community center
+            bookingDate,
+            bookedBy,
+            createdAt,
+            updatedAt,
+            status,
+            startTime: slotDetails.startTime, // Add startTime
+            endTime: slotDetails.endTime,     // Add endTime
+            match_type: "Bookings"             // Add match_type to each booking
+          }))
+      )
+    );
+  });
+};
 
 
 
