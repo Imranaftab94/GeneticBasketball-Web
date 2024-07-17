@@ -2236,32 +2236,32 @@ const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
 
 	return communityCenters.flatMap((center) => {
 		return center.communityTimeSlots.flatMap((slot) =>
-			slot.slots.flatMap((slotDetails) =>
-				slotDetails.bookings
-					.filter((booking) => {
-						// Convert booking.bookingDate to a Date object for comparison
-						const bookingDateInDb = new Date(booking.bookingDate);
-						return (
-							booking.bookedBy.equals(playerId) &&
-							booking.status === "Pending" &&
-							(!bookingDateObj ||
-								bookingDateInDb.getTime() === bookingDateObj.getTime())
-						);
-					})
-					.map(
-						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-							community_center: { _id: center._id }, // Use center._id for the community center
-							bookingDate,
-							bookedBy,
-							createdAt,
-							updatedAt,
-							status,
-							startTime: slotDetails.startTime, // Add startTime
-							endTime: slotDetails.endTime, // Add endTime
-							match_type: "Bookings", // Add match_type to each booking
-						})
-					)
-			)
+			slot.slots.flatMap((slotDetails) => {
+				// Check if there is any pending booking for the given player
+				const hasPendingBooking = slotDetails.bookings.some((booking) => {
+					const bookingDateInDb = new Date(booking.bookingDate);
+					return (
+						booking.bookedBy.equals(playerId) &&
+						booking.status === "Pending" &&
+						(!bookingDateObj ||
+							bookingDateInDb.getTime() === bookingDateObj.getTime())
+					);
+				});
+
+				// If there is a pending booking, include the slot with all its bookings
+				if (hasPendingBooking) {
+					return {
+						community_center: { _id: center._id }, // Use center._id for the community center
+						startTime: slotDetails.startTime, // Add startTime
+						endTime: slotDetails.endTime, // Add endTime
+						match_type: "Bookings", // Add match_type to each booking
+						bookings: slotDetails.bookings, // Add the entire bookings array
+					};
+				}
+
+				// Otherwise, return an empty array
+				return [];
+			})
 		);
 	});
 };
@@ -2272,31 +2272,31 @@ const addMatchTypeToBookingsAdminSide = (communityCenters, bookingDate) => {
 
 	return communityCenters.flatMap((center) => {
 		return center.communityTimeSlots.flatMap((slot) =>
-			slot.slots.flatMap((slotDetails) =>
-				slotDetails.bookings
-					.filter((booking) => {
-						// Convert booking.bookingDate to a Date object for comparison
-						const bookingDateInDb = new Date(booking.bookingDate);
-						return (
-							booking.status === "Pending" &&
-							(!bookingDateObj ||
-								bookingDateInDb.getTime() === bookingDateObj.getTime())
-						);
-					})
-					.map(
-						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-							community_center: { _id: center._id }, // Use center._id for the community center
-							bookingDate,
-							bookedBy,
-							createdAt,
-							updatedAt,
-							status,
-							startTime: slotDetails.startTime, // Add startTime
-							endTime: slotDetails.endTime, // Add endTime
-							match_type: "Bookings", // Add match_type to each booking
-						})
-					)
-			)
+			slot.slots.flatMap((slotDetails) => {
+				// Check if there is any pending booking
+				const hasPendingBooking = slotDetails.bookings.some((booking) => {
+					const bookingDateInDb = new Date(booking.bookingDate);
+					return (
+						booking.status === "Pending" &&
+						(!bookingDateObj ||
+							bookingDateInDb.getTime() === bookingDateObj.getTime())
+					);
+				});
+
+				// If there is a pending booking, include the slot with all its bookings
+				if (hasPendingBooking) {
+					return {
+						community_center: { _id: center._id }, // Use center._id for the community center
+						startTime: slotDetails.startTime, // Add startTime
+						endTime: slotDetails.endTime, // Add endTime
+						match_type: "Bookings", // Add match_type to each booking
+						bookings: slotDetails.bookings, // Add the entire bookings array
+					};
+				}
+
+				// Otherwise, return an empty array
+				return [];
+			})
 		);
 	});
 };
