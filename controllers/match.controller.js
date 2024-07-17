@@ -1780,7 +1780,11 @@ const scoreBoard = asyncHandler(async (req, res) => {
 	let tournamentMatchStat = await getMatchStatisticsTournament(
 		matchesIdsForTournament
 	);
-	const bookings = await addMatchTypeToBookings(communityCenters, playerId, req.query.date);
+	const bookings = await addMatchTypeToBookings(
+		communityCenters,
+		playerId,
+		req.query.date
+	);
 
 	// Combine match statistics
 	let combinedStats = [...matchStat, ...tournamentMatchStat];
@@ -2191,37 +2195,154 @@ const getMatchStatisticsTournament = async (matchIds) => {
 };
 
 const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
-  // Convert bookingDate to a Date object if provided
-  const bookingDateObj = bookingDate ? new Date(bookingDate) : null;
+	// Convert bookingDate to a Date object if provided
+	const bookingDateObj = bookingDate ? new Date(bookingDate) : null;
 
-  return communityCenters.flatMap((center) => {
-    return center.communityTimeSlots.flatMap((slot) =>
-      slot.slots.flatMap((slotDetails) =>
-        slotDetails.bookings
-          .filter((booking) => {
-            // Convert booking.bookingDate to a Date object for comparison
-            const bookingDateInDb = new Date(booking.bookingDate);
-            return (
-              booking.bookedBy.equals(playerId) &&
-              booking.status === "Pending" &&
-              (!bookingDateObj || bookingDateInDb.getTime() === bookingDateObj.getTime())
-            );
-          })
-          .map(({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-            community_center: center._id, // Use center._id for the community center
-            bookingDate,
-            bookedBy,
-            createdAt,
-            updatedAt,
-            status,
-            startTime: slotDetails.startTime, // Add startTime
-            endTime: slotDetails.endTime, // Add endTime
-            match_type: "Bookings", // Add match_type to each booking
-          }))
-      )
-    );
-  });
+	return communityCenters.flatMap((center) => {
+		return center.communityTimeSlots.flatMap((slot) =>
+			slot.slots.flatMap((slotDetails) =>
+				slotDetails.bookings
+					.filter((booking) => {
+						// Convert booking.bookingDate to a Date object for comparison
+						const bookingDateInDb = new Date(booking.bookingDate);
+						return (
+							booking.bookedBy.equals(playerId) &&
+							booking.status === "Pending" &&
+							(!bookingDateObj ||
+								bookingDateInDb.getTime() === bookingDateObj.getTime())
+						);
+					})
+					.map(
+						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
+							community_center: center._id, // Use center._id for the community center
+							bookingDate,
+							bookedBy,
+							createdAt,
+							updatedAt,
+							status,
+							startTime: slotDetails.startTime, // Add startTime
+							endTime: slotDetails.endTime, // Add endTime
+							match_type: "Bookings", // Add match_type to each booking
+						})
+					)
+			)
+		);
+	});
 };
+
+const addMatchTypeToBookingsAdminSide = (communityCenters, bookingDate) => {
+	// Convert bookingDate to a Date object if provided
+	const bookingDateObj = bookingDate ? new Date(bookingDate) : null;
+
+	return communityCenters.flatMap((center) => {
+		return center.communityTimeSlots.flatMap((slot) =>
+			slot.slots.flatMap((slotDetails) =>
+				slotDetails.bookings
+					.filter((booking) => {
+						// Convert booking.bookingDate to a Date object for comparison
+						const bookingDateInDb = new Date(booking.bookingDate);
+						return (
+							booking.status === "Pending" &&
+							(!bookingDateObj ||
+								bookingDateInDb.getTime() === bookingDateObj.getTime())
+						);
+					})
+					.map(
+						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
+							community_center: center._id, // Use center._id for the community center
+							bookingDate,
+							bookedBy,
+							createdAt,
+							updatedAt,
+							status,
+							startTime: slotDetails.startTime, // Add startTime
+							endTime: slotDetails.endTime, // Add endTime
+							match_type: "Bookings", // Add match_type to each booking
+						})
+					)
+			)
+		);
+	});
+};
+
+// @desc    Get communities and tournaments list
+// @route   GET /api/v1/matches/scoreBoard
+// @access  Private
+const scoreBoardAdminSide = asyncHandler(async (req, res) => {
+	// Fetch community centers
+	const communityCenters = await CommunityCenter.find({}).exec();
+
+	const communityCenterIds = communityCenters.map((cc) => cc._id);
+	const matches = await Matches.find({
+		community_center: { $in: communityCenterIds },
+		match_date: req.query.date ? req.query.date : { $exists: true },
+	})
+		.populate({
+			path: "team_A",
+			select: "isWinner",
+		})
+		.populate({
+			path: "team_B",
+			select: "isWinner matchScore",
+		})
+		.exec();
+	const tournament_matches = await TournamentMatches.find({
+		community_center: { $in: communityCenterIds },
+		match_date: req.query.date ? req.query.date : { $exists: true },
+	})
+		.populate({
+			path: "team_A",
+			select: "name matchScore isWinner",
+		})
+		.populate({
+			path: "team_B",
+			select: "name matchScore isWinner",
+		})
+		.populate({
+			path: "tournament",
+			select: "name",
+		})
+		.exec();
+	const matchesIdsForSimple = matches.map((match) => match._id);
+	const matchesIdsForTournament = tournament_matches.map((match) => match._id);
+	let matchStat = await getMatchStatistics(matchesIdsForSimple);
+	let tournamentMatchStat = await getMatchStatisticsTournament(
+		matchesIdsForTournament
+	);
+	const bookings = await addMatchTypeToBookingsAdminSide(
+		communityCenters,
+		req.query.date
+	);
+
+	// Combine match statistics
+	let combinedStats = [...matchStat, ...tournamentMatchStat];
+
+	// Combine matches and sort by createdAt in descending order
+	let combineMatches = [...matches, ...tournament_matches]
+		.sort((a, b) => b.createdAt - a.createdAt)
+		.map((match) => ({
+			...match.toObject(), // Convert Mongoose document to plain object if needed
+			topPlayers:
+				combinedStats.find(
+					(stat) => stat.matchId.toString() === match._id.toString()
+				) || null,
+		}));
+
+	// Combine matches and bookings
+	let combineMatchesAndBookings = [...combineMatches, ...bookings];
+
+	// Format the final response
+	let formattedResponse = communityCenters.map((communityCenter) => ({
+		name: communityCenter.name,
+		_id: communityCenter._id,
+		image: communityCenter.image,
+		matches: combineMatchesAndBookings.filter(
+			(cobm) => (cobm) => cobm.community_center === communityCenter._id
+		), // Filter by community center
+	}));
+
+	successResponse(res, formattedResponse, statusCodes.OK);
+});
 
 export {
 	createMatch,
@@ -2234,4 +2355,5 @@ export {
 	getMatchesBasedonBookingId,
 	uploadHighlights,
 	scoreBoard,
+  scoreBoardAdminSide,
 };
