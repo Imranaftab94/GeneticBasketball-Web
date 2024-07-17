@@ -1793,10 +1793,12 @@ const scoreBoard = asyncHandler(async (req, res) => {
 		...tournament_matches.map((match) => match.community_center),
 		...currentCommunityCenterListing,
 	];
-	const uniqueCommunityCenters = Array.from(
-		new Map(
-			communityCenterListing.map((center) => [center._id, center])
-		).values()
+	const uniqueCommunityCenters = communityCenterListing.filter(
+		(community, index) =>
+			index ===
+			communityCenterListing.findIndex(
+				(other) => community._id.toString() === other._id.toString()
+			)
 	);
 	const matchesIdsForSimple = matches.map((match) => match._id);
 	const matchesIdsForTournament = tournament_matches.map((match) => match._id);
@@ -2358,11 +2360,14 @@ const scoreBoardAdminSide = asyncHandler(async (req, res) => {
 		...tournament_matches.map((match) => match.community_center),
 		...currentCommunityCenterListing,
 	];
-	const uniqueCommunityCenters = Array.from(
-		new Map(
-			communityCenterListing.map((center) => [center._id, center])
-		).values()
+	const uniqueCommunityCenters = communityCenterListing.filter(
+		(community, index) =>
+			index ===
+			communityCenterListing.findIndex(
+				(other) => community._id.toString() === other._id.toString()
+			)
 	);
+
 	const matchesIdsForSimple = matches.map((match) => match._id);
 	const matchesIdsForTournament = tournament_matches.map((match) => match._id);
 	let matchStat = await getMatchStatistics(matchesIdsForSimple);
