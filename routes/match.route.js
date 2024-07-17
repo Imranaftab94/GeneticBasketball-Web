@@ -9,6 +9,7 @@ import {
 	changeMatchStatus,
 	createMatch,
 	getAllMatchesWithinAdmin,
+	getMatchDetailsWithStats,
 	getMatchesBasedonBookingId,
 	getMatchesBasedonCommunity,
 	getMatchesBasedonUser,
@@ -42,5 +43,6 @@ router
 	.post(protect, admin, upload, uploadHighlights);
 router.route("/scoreBoard").get(protect, scoreBoard);
 router.route("/admin/scoreBoard").get(protect, admin, scoreBoardAdminSide);
+router.route("/matchDetail").get(protect, getMatchDetailsWithStats);
 
 export default router;

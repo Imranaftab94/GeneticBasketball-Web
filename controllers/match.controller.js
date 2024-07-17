@@ -2423,6 +2423,136 @@ const scoreBoardAdminSide = asyncHandler(async (req, res) => {
 	successResponse(res, formattedResponse, statusCodes.OK);
 });
 
+//Get Match Detail with stat
+const getMatchDetailsWithStats = async (req, res) => {
+	const { matchId } = req.query;
+
+	try {
+		// Try to find the match in the Matches collection
+		let match = await Matches.findById(matchId)
+			.populate({
+				path: "community_center",
+				select: "name image",
+			})
+			.populate({
+				path: "team_A.players.user",
+				select: "firstName lastName profilePhoto email address",
+			})
+			.populate({
+				path: "team_B.players.user",
+				select: "firstName lastName profilePhoto email address",
+			})
+			.exec();
+
+		if (match) {
+			// Match found in Matches collection, fetch player stats
+			const playerStats = await PlayerMatchStats.find({ match: matchId })
+				.populate("player", "firstName lastName profilePhoto email address")
+				.exec();
+
+			// Combine match details with player stats
+			const matchDetails = match.toObject();
+			matchDetails.team_A.players = matchDetails.team_A.players.map(
+				(player) => {
+					const stat = playerStats.find(
+						(stat) => stat.player._id.toString() === player.user._id.toString()
+					);
+					player.stats = stat ? stat.toObject() : null;
+					if (player.stats) {
+						delete player.stats.player; // Remove player field from stats
+					}
+					return player;
+				}
+			);
+			matchDetails.team_B.players = matchDetails.team_B.players.map(
+				(player) => {
+					const stat = playerStats.find(
+						(stat) => stat.player._id.toString() === player.user._id.toString()
+					);
+					player.stats = stat ? stat.toObject() : null;
+					if (player.stats) {
+						delete player.stats.player; // Remove player field from stats
+					}
+					return player;
+				}
+			);
+
+			return successResponse(res, matchDetails, statusCodes.OK);
+		}
+
+		// Match not found in Matches collection, try TournamentMatches collection
+		match = await TournamentMatches.findById(matchId)
+			.populate({
+				path: "community_center",
+				select: "name image",
+			})
+			.populate({
+				path: "tournament",
+				select:
+					"-_location -tournament_matches -tournament_bookings -tournament_team",
+			})
+			.populate({
+				path: "team_A",
+				populate: {
+					path: "players.user",
+					select: "firstName lastName profilePhoto email address",
+				},
+			})
+			.populate({
+				path: "team_B",
+				populate: {
+					path: "players.user",
+					select: "firstName lastName profilePhoto email address",
+				},
+			})
+			.exec();
+
+		if (match) {
+			// Match found in TournamentMatches collection, fetch player stats
+			const playerStats = await TournamentPlayerMatchStat.find({
+				match: matchId,
+			})
+				.populate("player", "firstName lastName profilePhoto email address")
+				.exec();
+
+			// Combine match details with player stats
+			const matchDetails = match.toObject();
+			matchDetails.team_A.players = matchDetails.team_A.players.map(
+				(player) => {
+					const stat = playerStats.find(
+						(stat) => stat.player._id.toString() === player.user._id.toString()
+					);
+					player.stats = stat ? stat.toObject() : null;
+					if (player.stats) {
+						delete player.stats.player; // Remove player field from stats
+					}
+					return player;
+				}
+			);
+			matchDetails.team_B.players = matchDetails.team_B.players.map(
+				(player) => {
+					const stat = playerStats.find(
+						(stat) => stat.player._id.toString() === player.user._id.toString()
+					);
+					player.stats = stat ? stat.toObject() : null;
+					if (player.stats) {
+						delete player.stats.player; // Remove player field from stats
+					}
+					return player;
+				}
+			);
+
+			return successResponse(res, matchDetails, statusCodes.OK);
+		}
+
+		// Match not found in either collection
+		return errorResponse(res, "Match not found.", statusCodes.NOT_FOUND);
+	} catch (error) {
+		console.error(error);
+		return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
+	}
+};
+
 export {
 	createMatch,
 	getMatchesBasedonUser,
@@ -2435,4 +2565,5 @@ export {
 	uploadHighlights,
 	scoreBoard,
 	scoreBoardAdminSide,
+	getMatchDetailsWithStats,
 };
