@@ -1780,7 +1780,7 @@ const scoreBoard = asyncHandler(async (req, res) => {
 	let tournamentMatchStat = await getMatchStatisticsTournament(
 		matchesIdsForTournament
 	);
-	const bookings = await addMatchTypeToBookings(communityCenters, playerId);
+	const bookings = await addMatchTypeToBookings(communityCenters, playerId, req.query.date);
 
 	// Combine match statistics
 	let combinedStats = [...matchStat, ...tournamentMatchStat];
@@ -2190,31 +2190,37 @@ const getMatchStatisticsTournament = async (matchIds) => {
 	}
 };
 
-const addMatchTypeToBookings = (communityCenters, playerId) => {
-	return communityCenters.flatMap((center) => {
-		return center.communityTimeSlots.flatMap((slot) =>
-			slot.slots.flatMap((slotDetails) =>
-				slotDetails.bookings
-					.filter(
-						(booking) =>
-							booking.bookedBy.equals(playerId) && booking.status === "Pending"
-					)
-					.map(
-						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-							community_center: center._id, // Use center._id for the community center
-							bookingDate,
-							bookedBy,
-							createdAt,
-							updatedAt,
-							status,
-							startTime: slotDetails.startTime, // Add startTime
-							endTime: slotDetails.endTime, // Add endTime
-							match_type: "Bookings", // Add match_type to each booking
-						})
-					)
-			)
-		);
-	});
+const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
+  // Convert bookingDate to a Date object if provided
+  const bookingDateObj = bookingDate ? new Date(bookingDate) : null;
+
+  return communityCenters.flatMap((center) => {
+    return center.communityTimeSlots.flatMap((slot) =>
+      slot.slots.flatMap((slotDetails) =>
+        slotDetails.bookings
+          .filter((booking) => {
+            // Convert booking.bookingDate to a Date object for comparison
+            const bookingDateInDb = new Date(booking.bookingDate);
+            return (
+              booking.bookedBy.equals(playerId) &&
+              booking.status === "Pending" &&
+              (!bookingDateObj || bookingDateInDb.getTime() === bookingDateObj.getTime())
+            );
+          })
+          .map(({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
+            community_center: center._id, // Use center._id for the community center
+            bookingDate,
+            bookedBy,
+            createdAt,
+            updatedAt,
+            status,
+            startTime: slotDetails.startTime, // Add startTime
+            endTime: slotDetails.endTime, // Add endTime
+            match_type: "Bookings", // Add match_type to each booking
+          }))
+      )
+    );
+  });
 };
 
 export {
