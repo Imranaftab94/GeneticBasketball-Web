@@ -2250,7 +2250,7 @@ const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
 					})
 					.map(
 						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-							community_center: { _id: _id }, // Use center._id for the community center
+							community_center: { _id: center._id }, // Use center._id for the community center
 							bookingDate,
 							bookedBy,
 							createdAt,
