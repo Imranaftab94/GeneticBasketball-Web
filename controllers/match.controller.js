@@ -1737,6 +1737,10 @@ const scoreBoard = asyncHandler(async (req, res) => {
 			path: "team_B",
 			select: "isWinner matchScore",
 		})
+		.populate({
+			path: "community_center",
+			select: "name image address", // Only select these fields
+		})
 		.exec();
 
 	const teams = await Team.find({
@@ -1773,7 +1777,20 @@ const scoreBoard = asyncHandler(async (req, res) => {
 			path: "tournament",
 			select: "name",
 		})
+		.populate({
+			path: "community_center",
+			select: "name image address", // Only select these fields
+		})
 		.exec();
+	let communityCenterListing = [
+		...matches.map((match) => match.community_center),
+		...tournament_matches.map((match) => match.community_center),
+	];
+	const uniqueCommunityCenters = Array.from(
+		new Map(
+			communityCenterListing.map((center) => [center._id, center])
+		).values()
+	);
 	const matchesIdsForSimple = matches.map((match) => match._id);
 	const matchesIdsForTournament = tournament_matches.map((match) => match._id);
 	let matchStat = await getMatchStatistics(matchesIdsForSimple);
@@ -1804,14 +1821,26 @@ const scoreBoard = asyncHandler(async (req, res) => {
 	let combineMatchesAndBookings = [...combineMatches, ...bookings];
 
 	// Format the final response
-	let formattedResponse = communityCenters.map((communityCenter) => ({
-		name: communityCenter.name,
-		_id: communityCenter._id,
-		image: communityCenter.image,
-		matches: combineMatchesAndBookings.filter(
-			(cobm) => (cobm) => cobm.community_center === communityCenter._id
-		), // Filter by community center
-	}));
+	let formattedResponse = uniqueCommunityCenters.map((communityCenter) => {
+		// Convert community center ID to string
+		let communityCenterId = communityCenter._id.toString();
+
+		// Filter matches based on community center ID
+		let filteredMatches = combineMatchesAndBookings.filter((cobm) => {
+			// Convert match community center ID to string
+			let matchCommunityCenterId = cobm.community_center._id.toString();
+			// Return comparison result
+			return matchCommunityCenterId === communityCenterId;
+		});
+
+		// Return formatted response for this community center
+		return {
+			name: communityCenter.name,
+			_id: communityCenter._id,
+			image: communityCenter.image,
+			matches: filteredMatches,
+		};
+	});
 
 	successResponse(res, formattedResponse, statusCodes.OK);
 });
@@ -2214,7 +2243,7 @@ const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
 					})
 					.map(
 						({ _id, bookingDate, bookedBy, createdAt, updatedAt, status }) => ({
-							community_center: center._id, // Use center._id for the community center
+							community_center: { _id: center._id }, // Use center._id for the community center
 							bookingDate,
 							bookedBy,
 							createdAt,
@@ -2355,5 +2384,5 @@ export {
 	getMatchesBasedonBookingId,
 	uploadHighlights,
 	scoreBoard,
-  scoreBoardAdminSide,
+	scoreBoardAdminSide,
 };
