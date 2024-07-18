@@ -2257,7 +2257,13 @@ const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
 						startTime: slotDetails.startTime, // Add startTime
 						endTime: slotDetails.endTime, // Add endTime
 						match_type: "Bookings", // Add match_type to each booking
-						bookings: slotDetails.bookings, // Add the entire bookings array
+						bookings: slotDetails.bookings.filter((_booking) => {
+							const bookingDateInDb = new Date(_booking.bookingDate);
+							return (
+								!bookingDateObj ||
+								bookingDateInDb.getTime() === bookingDateObj.getTime()
+							);
+						}), // Add the entire bookings array
 					};
 				}
 
@@ -2292,7 +2298,13 @@ const addMatchTypeToBookingsAdminSide = (communityCenters, bookingDate) => {
 						startTime: slotDetails.startTime, // Add startTime
 						endTime: slotDetails.endTime, // Add endTime
 						match_type: "Bookings", // Add match_type to each booking
-						bookings: slotDetails.bookings, // Add the entire bookings array
+						bookings: slotDetails.bookings.filter((_booking) => {
+							const bookingDateInDb = new Date(_booking.bookingDate);
+							return (
+								!bookingDateObj ||
+								bookingDateInDb.getTime() === bookingDateObj.getTime()
+							);
+						}), // Add the entire bookings array
 					};
 				}
 
