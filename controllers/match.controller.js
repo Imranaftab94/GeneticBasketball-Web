@@ -2243,7 +2243,6 @@ const addMatchTypeToBookings = (communityCenters, playerId, bookingDate) => {
 				const hasPendingBooking = slotDetails.bookings.some((booking) => {
 					const bookingDateInDb = new Date(booking.bookingDate);
 					return (
-						booking.bookedBy.equals(playerId) &&
 						booking.status === "Pending" &&
 						(!bookingDateObj ||
 							bookingDateInDb.getTime() === bookingDateObj.getTime())
