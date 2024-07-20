@@ -7,6 +7,7 @@ import {
 import {
 	addOrUpdatePlayerMatchStat,
 	changeMatchStatus,
+	communityCenterListingBasedOnUser,
 	createMatch,
 	getAllMatchesWithinAdmin,
 	getMatchDetailsWithStats,
@@ -44,5 +45,8 @@ router
 router.route("/scoreBoard").get(protect, scoreBoard);
 router.route("/admin/scoreBoard").get(protect, admin, scoreBoardAdminSide);
 router.route("/matchDetail").get(protect, getMatchDetailsWithStats);
+router
+	.route("/communityCentersList")
+	.get(protect, communityCenterListingBasedOnUser);
 
 export default router;

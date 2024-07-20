@@ -2702,7 +2702,86 @@ const getMatchDetailsWithStats = async (req, res) => {
 
 const communityCenterListingBasedOnUser = asyncHandler(async (req, res) => {
 	try {
-	} catch (error) {}
+		const playerId = req.query.playerId;
+		if (!playerId) {
+			return errorResponse(
+				res,
+				"Player id is required.",
+				statusCodes.BAD_REQUEST
+			);
+		}
+		const player = new mongoose.Types.ObjectId(playerId);
+
+		// Step 1: Aggregate to get community centers from tournaments and matches
+		const teams = await Team.aggregate([
+			{ $match: { "players.user": player } },
+			{
+				$lookup: {
+					from: "tournaments",
+					localField: "tournament",
+					foreignField: "_id",
+					as: "tournament",
+				},
+			},
+			{ $unwind: "$tournament" },
+			{
+				$lookup: {
+					from: "communitycenters",
+					localField: "tournament.community_center",
+					foreignField: "_id",
+					as: "community_center",
+				},
+			},
+			{ $unwind: "$community_center" },
+			{
+				$project: {
+					_id: "$community_center._id",
+					name: "$community_center.name",
+					image: "$community_center.image",
+				},
+			},
+		]);
+
+		// Step 2: Find community centers from matches
+		const matches = await Matches.aggregate([
+			{
+				$match: {
+					$or: [
+						{ "team_A.players.user": player },
+						{ "team_B.players.user": player },
+					],
+				},
+			},
+			{
+				$lookup: {
+					from: "communitycenters",
+					localField: "community_center",
+					foreignField: "_id",
+					as: "community_center",
+				},
+			},
+			{ $unwind: "$community_center" },
+			{
+				$project: {
+					_id: "$community_center._id",
+					name: "$community_center.name",
+					image: "$community_center.image",
+				},
+			},
+		]);
+
+		// Combine and remove duplicates
+		const allCommunityCenters = [...teams, ...matches];
+		const uniqueCommunityCenters = allCommunityCenters.filter(
+			(center, index, self) =>
+				index ===
+				self.findIndex((c) => c._id.toString() === center._id.toString())
+		);
+
+		successResponse(res, uniqueCommunityCenters, statusCodes.OK);
+	} catch (error) {
+		errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
+	}
 });
 
 export {
@@ -2718,4 +2797,5 @@ export {
 	scoreBoard,
 	scoreBoardAdminSide,
 	getMatchDetailsWithStats,
+	communityCenterListingBasedOnUser,
 };
