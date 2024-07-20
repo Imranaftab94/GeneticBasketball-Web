@@ -271,6 +271,18 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
 											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
 										],
 									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_A_users.ratings",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_A_users.rating",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
 									stats: {
 										$let: {
 											vars: {
@@ -359,6 +371,18 @@ const getMatchesBasedonUser = asyncHandler(async (req, res) => {
 									profilePhoto: {
 										$arrayElemAt: [
 											"$team_B_users.profilePhoto",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_B_users.ratings",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_B_users.rating",
 											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
 										],
 									},
@@ -561,6 +585,18 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
 											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
 										],
 									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_A_users.ratings",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_A_users.rating",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
 									stats: {
 										$let: {
 											vars: {
@@ -649,6 +685,18 @@ const getMatchesBasedonCommunity = asyncHandler(async (req, res) => {
 									profilePhoto: {
 										$arrayElemAt: [
 											"$team_B_users.profilePhoto",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_B_users.ratings",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_B_users.rating",
 											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
 										],
 									},
@@ -883,6 +931,18 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
 											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
 										],
 									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_A_users.ratings",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_A_users.rating",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
 									stats: {
 										$let: {
 											vars: {
@@ -971,6 +1031,18 @@ const getAllMatchesWithinAdmin = asyncHandler(async (req, res) => {
 									profilePhoto: {
 										$arrayElemAt: [
 											"$team_B_users.profilePhoto",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_B_users.ratings",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_B_users.rating",
 											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
 										],
 									},
@@ -1514,6 +1586,18 @@ const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
 											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
 										],
 									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_A_users.ratings",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_A_users.rating",
+											{ $indexOfArray: ["$team_A_users._id", "$$player.user"] },
+										],
+									},
 									stats: {
 										$let: {
 											vars: {
@@ -1605,6 +1689,19 @@ const getMatchesBasedonBookingId = asyncHandler(async (req, res) => {
 											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
 										],
 									},
+									ratings: {
+										$arrayElemAt: [
+											"$team_B_users.ratings",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+									rating: {
+										$arrayElemAt: [
+											"$team_B_users.rating",
+											{ $indexOfArray: ["$team_B_users._id", "$$player.user"] },
+										],
+									},
+
 									stats: {
 										$let: {
 											vars: {
@@ -1937,6 +2034,8 @@ const getMatchStatistics = async (matchIds) => {
 										$arrayElemAt: ["$topScorerUser.profilePhoto", 0],
 									},
 									email: { $arrayElemAt: ["$topScorerUser.email", 0] },
+									ratings: { $arrayElemAt: ["$topScorerUser.ratings", 0] },
+									rating: { $arrayElemAt: ["$topScorerUser.rating", 0] },
 								},
 								else: null,
 							},
@@ -1973,6 +2072,12 @@ const getMatchStatistics = async (matchIds) => {
 									email: {
 										$arrayElemAt: ["$topFieldGoalsAttemptedUser.email", 0],
 									},
+									ratings: {
+										$arrayElemAt: ["$topFieldGoalsAttemptedUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topFieldGoalsAttemptedUser.rating", 0],
+									},
 								},
 								else: null,
 							},
@@ -1999,6 +2104,12 @@ const getMatchStatistics = async (matchIds) => {
 									},
 									email: {
 										$arrayElemAt: ["$topDefensiveReboundsUser.email", 0],
+									},
+									ratings: {
+										$arrayElemAt: ["$topDefensiveReboundsUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topDefensiveReboundsUser.rating", 0],
 									},
 								},
 								else: null,
@@ -2126,6 +2237,8 @@ const getMatchStatisticsTournament = async (matchIds) => {
 										$arrayElemAt: ["$topScorerUser.profilePhoto", 0],
 									},
 									email: { $arrayElemAt: ["$topScorerUser.email", 0] },
+									ratings: { $arrayElemAt: ["$topScorerUser.ratings", 0] },
+									rating: { $arrayElemAt: ["$topScorerUser.rating", 0] },
 								},
 								else: null,
 							},
@@ -2162,6 +2275,12 @@ const getMatchStatisticsTournament = async (matchIds) => {
 									email: {
 										$arrayElemAt: ["$topFieldGoalsAttemptedUser.email", 0],
 									},
+									ratings: {
+										$arrayElemAt: ["$topFieldGoalsAttemptedUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topFieldGoalsAttemptedUser.rating", 0],
+									},
 								},
 								else: null,
 							},
@@ -2188,6 +2307,12 @@ const getMatchStatisticsTournament = async (matchIds) => {
 									},
 									email: {
 										$arrayElemAt: ["$topDefensiveReboundsUser.email", 0],
+									},
+									ratings: {
+										$arrayElemAt: ["$topDefensiveReboundsUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topDefensiveReboundsUser.rating", 0],
 									},
 								},
 								else: null,
@@ -2315,7 +2440,7 @@ const addMatchTypeToBookingsAdminSide = (communityCenters, bookingDate) => {
 };
 
 // @desc    Get communities and tournaments list
-// @route   GET /api/v1/matches/scoreBoard
+// @route   GET /api/v1/matches/admin/scoreBoard
 // @access  Private
 const scoreBoardAdminSide = asyncHandler(async (req, res) => {
 	// Fetch community centers
@@ -2434,7 +2559,9 @@ const scoreBoardAdminSide = asyncHandler(async (req, res) => {
 	successResponse(res, formattedResponse, statusCodes.OK);
 });
 
-//Get Match Detail with stat
+// @desc    Get Match Detail with stat
+// @route   GET /api/v1/matches/matchDetail?matchId=${matchId}
+// @access  Private
 const getMatchDetailsWithStats = async (req, res) => {
 	const { matchId } = req.query;
 
@@ -2447,11 +2574,11 @@ const getMatchDetailsWithStats = async (req, res) => {
 			})
 			.populate({
 				path: "team_A.players.user",
-				select: "firstName lastName profilePhoto email address",
+				select: "firstName lastName profilePhoto email address ratings rating",
 			})
 			.populate({
 				path: "team_B.players.user",
-				select: "firstName lastName profilePhoto email address",
+				select: "firstName lastName profilePhoto email address ratings rating",
 			})
 			.exec();
 
@@ -2506,14 +2633,16 @@ const getMatchDetailsWithStats = async (req, res) => {
 				path: "team_A",
 				populate: {
 					path: "players.user",
-					select: "firstName lastName profilePhoto email address",
+					select:
+						"firstName lastName profilePhoto email address ratings rating",
 				},
 			})
 			.populate({
 				path: "team_B",
 				populate: {
 					path: "players.user",
-					select: "firstName lastName profilePhoto email address",
+					select:
+						"firstName lastName profilePhoto email address ratings rating",
 				},
 			})
 			.exec();
@@ -2523,7 +2652,10 @@ const getMatchDetailsWithStats = async (req, res) => {
 			const playerStats = await TournamentPlayerMatchStat.find({
 				match: matchId,
 			})
-				.populate("player", "firstName lastName profilePhoto email address")
+				.populate(
+					"player",
+					"firstName lastName profilePhoto email address ratings rating"
+				)
 				.exec();
 
 			// Combine match details with player stats
@@ -2563,6 +2695,15 @@ const getMatchDetailsWithStats = async (req, res) => {
 		return errorResponse(res, error.message, statusCodes.INTERNAL_SERVER_ERROR);
 	}
 };
+
+// @desc    Get Community centers in which the player has played matches
+// @route   GET /api/v1/matches/communityCentersList
+// @access  Private
+
+const communityCenterListingBasedOnUser = asyncHandler(async (req, res) => {
+	try {
+	} catch (error) {}
+});
 
 export {
 	createMatch,
