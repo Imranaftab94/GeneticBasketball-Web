@@ -14,6 +14,7 @@ import {
 	getMatchesBasedonBookingId,
 	getMatchesBasedonCommunity,
 	getMatchesBasedonUser,
+	getPlayerMatchStatsWithFilter,
 	getPlayerOverallStats,
 	scoreBoard,
 	scoreBoardAdminSide,
@@ -48,5 +49,6 @@ router.route("/matchDetail").get(protect, getMatchDetailsWithStats);
 router
 	.route("/communityCentersList")
 	.get(protect, communityCenterListingBasedOnUser);
+router.route("/playerMatchStats").get(protect, getPlayerMatchStatsWithFilter);
 
 export default router;

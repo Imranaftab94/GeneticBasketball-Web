@@ -14,10 +14,13 @@ import {
 	modifyBookingStatus,
 	sendMatchStartPaymentInfo,
 } from "../services/event-loop-functions.service.js";
-import mongoose from "mongoose";
+import mongoose, { MongooseError } from "mongoose";
 import { MatchStatus } from "../constants/match-status.constant.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
 import {
+	calculateStatsSumAsArray,
+	getMatchStatisticsSimple,
+	getMatchStatisticsTournament1,
 	updateHighlights,
 	updateMatchWinner,
 } from "../services/matches.service.js";
@@ -1253,6 +1256,8 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
 			},
 		]);
 
+		console.log("Regular Matches", regularMatches);
+
 		const regularMatchStats = regularMatches[0] || {
 			totalMatches: 0,
 			wonMatches: 0,
@@ -1843,10 +1848,6 @@ const scoreBoard = asyncHandler(async (req, res) => {
 	const teams = await Team.find({
 		"players.user": playerId,
 	});
-
-	if (!teams || teams.length === 0) {
-		throw new Error("Player not found in any team");
-	}
 
 	// Extract team IDs
 	const teamIds = teams.map((team) => team._id);
@@ -2784,6 +2785,225 @@ const communityCenterListingBasedOnUser = asyncHandler(async (req, res) => {
 	}
 });
 
+// player overall stats based on filter
+const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
+	try {
+		if (!req.query.userId) {
+			errorResponse(res, "User id is required", statusCodes.BAD_GATEWAY);
+		}
+		// Fetch community centers
+		let playerId = new mongoose.Types.ObjectId(req.query.userId);
+		const matches = await Matches.find({
+			$or: [
+				{ "team_A.players.user": playerId },
+				{ "team_B.players.user": playerId },
+			],
+			community_center: req.query.community_center
+				? req.query.community_center
+				: { $exists: true },
+			match_date: req.query.date ? req.query.date : { $exists: true },
+		})
+			.populate({
+				path: "team_A",
+				select: "isWinner name matchScore",
+			})
+			.populate({
+				path: "team_B",
+				select: "isWinner matchScore",
+			})
+			.populate({
+				path: "community_center",
+				select: "name image address", // Only select these fields
+			})
+			.exec();
+		const simpleMatchesIds = matches.map((match) => match._id);
+		const teams = await Team.find({
+			"players.user": playerId,
+		});
+
+		if (!teams || teams.length === 0) {
+			throw new Error("Player not found in any team");
+		}
+
+		// Extract team IDs
+		const teamIds = teams.map((team) => team._id);
+
+		// Find matches where any of these teams is either team_A or team_B
+		let tournamentMatchFilter = {
+			$or: [{ team_A: { $in: teamIds } }, { team_B: { $in: teamIds } }],
+			community_center: req.query.community_center
+				? req.query.community_center
+				: { $exists: true },
+		};
+
+		if (req.query.date) {
+			tournamentMatchFilter.match_date = req.query.date;
+		} else {
+			tournamentMatchFilter.match_date = { $exists: true };
+		}
+		const tournament_matches = await TournamentMatches.find(
+			tournamentMatchFilter
+		)
+			.populate({
+				path: "team_A",
+				select: "name matchScore isWinner",
+			})
+			.populate({
+				path: "team_B",
+				select: "name matchScore isWinner",
+			})
+			.populate({
+				path: "tournament",
+				select: "name",
+			})
+			.populate({
+				path: "community_center",
+				select: "name image address", // Only select these fields
+			})
+			.exec();
+		const TournamentMatchesIds = tournament_matches.map((match) => match._id);
+		const SimpleMatchStats = await getMatchStatisticsSimple(
+			simpleMatchesIds,
+			playerId
+		);
+
+		const TournamentMatchStats = await getMatchStatisticsTournament1(
+			TournamentMatchesIds,
+			playerId
+		);
+
+		let combinedStats = [...SimpleMatchStats, ...TournamentMatchStats];
+		let combinedMatches = [...matches, ...tournament_matches];
+		let totalStatistics = calculateStatsSumAsArray(combinedStats);
+		let totalWins = 0;
+		let totalLosses = 0;
+
+		const formattedMatches = combinedMatches.map((match) => {
+			let playerData = {
+				team: null,
+				stats: null,
+				isWinner: false,
+				matchScore: 0,
+				opponentScore: 0,
+			};
+			let isWinner = false;
+
+			// Find the player in team_A
+			const teamAPlayer =
+				match.team_A.players &&
+				match.team_A.players.find(
+					(player) => player.user.toString() === playerId.toString()
+				);
+			if (teamAPlayer) {
+				isWinner = match.team_A.isWinner;
+				const playerStats = combinedStats.find(
+					(stat) =>
+						stat.player.toString() === playerId.toString() &&
+						stat.match.toString() === match._id.toString()
+				);
+				teamAPlayer.stats = playerStats || {
+					minutesPlayed: 0,
+					fieldGoalsMade: 0,
+					fieldGoalsAttempted: 0,
+					threePointersMade: 0,
+					threePointersAttempted: 0,
+					freeThrowsMade: 0,
+					freeThrowsAttempted: 0,
+					offensiveRebounds: 0,
+					defensiveRebounds: 0,
+					assists: 0,
+					steals: 0,
+					blocks: 0,
+					turnovers: 0,
+					pointsScored: 0,
+				};
+				teamAPlayer.isWinner = isWinner;
+				playerData = {
+					team: "A",
+					stats: playerStats,
+					isWinner: isWinner,
+					matchScore: match.team_A.matchScore,
+					opponentScore: match.team_B.matchScore,
+				};
+			}
+
+			// Find the player in team_B
+			const teamBPlayer =
+				match.team_B.players &&
+				match.team_B.players.find(
+					(player) => player.user.toString() === playerId.toString()
+				);
+			if (teamBPlayer) {
+				isWinner = match.team_B.isWinner;
+				const playerStats = combinedStats.find(
+					(stat) =>
+						stat.player.toString() === playerId.toString() &&
+						stat.match.toString() === match._id.toString()
+				);
+				teamBPlayer.stats = playerStats || {
+					minutesPlayed: 0,
+					fieldGoalsMade: 0,
+					fieldGoalsAttempted: 0,
+					threePointersMade: 0,
+					threePointersAttempted: 0,
+					freeThrowsMade: 0,
+					freeThrowsAttempted: 0,
+					offensiveRebounds: 0,
+					defensiveRebounds: 0,
+					assists: 0,
+					steals: 0,
+					blocks: 0,
+					turnovers: 0,
+					pointsScored: 0,
+				};
+				teamBPlayer.isWinner = isWinner;
+				playerData = {
+					team: "B",
+					stats: playerStats,
+					isWinner: isWinner,
+					matchScore: match.team_B.matchScore,
+					opponentScore: match.team_A.matchScore,
+				};
+			}
+
+			// Update win/loss count
+			if (isWinner) {
+				totalWins++;
+			} else {
+				totalLosses++;
+			}
+
+			return {
+				...match.toObject(), // Convert mongoose document to plain object
+				playerData: playerData,
+				team_A: {
+					name: match.team_A.name,
+					matchScore: match.team_A.matchScore,
+					isWinner: match.team_A.isWinner,
+				},
+				team_B: {
+					name: match.team_B.name,
+					matchScore: match.team_B.matchScore,
+					isWinner: match.team_B.isWinner,
+				},
+			};
+		});
+
+		let formattedResponse = {
+			matches: formattedMatches,
+			totalWins,
+			totalLosses,
+			totalMatches: combinedMatches.length,
+			totalStatistics,
+		};
+
+		successResponse(res, formattedResponse, statusCodes.OK);
+	} catch (error) {
+		console.log(error);
+		errorResponse(res, error, statusCodes.INTERNAL_SERVER_ERROR);
+	}
+});
+
 export {
 	createMatch,
 	getMatchesBasedonUser,
@@ -2798,4 +3018,5 @@ export {
 	scoreBoardAdminSide,
 	getMatchDetailsWithStats,
 	communityCenterListingBasedOnUser,
+	getPlayerMatchStatsWithFilter,
 };
