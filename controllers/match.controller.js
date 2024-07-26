@@ -2935,10 +2935,6 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 			"players.user": playerId,
 		});
 
-		if (!teams || teams.length === 0) {
-			throw new Error("Player not found in any team");
-		}
-
 		// Extract team IDs
 		const teamIds = teams.map((team) => team._id);
 
