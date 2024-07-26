@@ -1989,6 +1989,15 @@ const getMatchStatistics = async (matchIds) => {
 							],
 						},
 					},
+					topAssistsStat: {
+						$max: {
+							$cond: [
+								{ $ne: ["$assists", null] },
+								{ assists: "$assists", player: "$player" },
+								null,
+							],
+						},
+					},
 				},
 			},
 			{
@@ -2013,6 +2022,14 @@ const getMatchStatistics = async (matchIds) => {
 					localField: "topDefensiveReboundsStat.player",
 					foreignField: "_id",
 					as: "topDefensiveReboundsUser",
+				},
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "topAssistsStat.player",
+					foreignField: "_id",
+					as: "topAssistsUser",
 				},
 			},
 			{
@@ -2117,6 +2134,39 @@ const getMatchStatistics = async (matchIds) => {
 							},
 						},
 					},
+					topAssists: {
+						assists: "$topAssistsStat.assists",
+						user: {
+							$cond: {
+								if: { $gt: ["$topAssistsStat.assists", 0] },
+								then: {
+									_id: { $arrayElemAt: ["$topAssistsUser._id", 0] },
+									firstName: {
+										$arrayElemAt: ["$topAssistsUser.firstName", 0],
+									},
+									lastName: {
+										$arrayElemAt: ["$topAssistsUser.lastName", 0],
+									},
+									displayName: {
+										$arrayElemAt: ["$topAssistsUser.displayName", 0],
+									},
+									profilePhoto: {
+										$arrayElemAt: ["$topAssistsUser.profilePhoto", 0],
+									},
+									email: {
+										$arrayElemAt: ["$topAssistsUser.email", 0],
+									},
+									ratings: {
+										$arrayElemAt: ["$topAssistsUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topAssistsUser.rating", 0],
+									},
+								},
+								else: null,
+							},
+						},
+					},
 				},
 			},
 		]);
@@ -2144,6 +2194,13 @@ const getMatchStatistics = async (matchIds) => {
 					? {
 							defensiveRebounds: result.topDefensiveRebounds.defensiveRebounds,
 							user: result.topDefensiveRebounds.user,
+					  }
+					: null,
+			topAssists:
+				result.topAssists.assists > 0
+					? {
+							assists: result.topAssists.assists,
+							user: result.topAssists.user,
 					  }
 					: null,
 		}));
@@ -2192,6 +2249,15 @@ const getMatchStatisticsTournament = async (matchIds) => {
 							],
 						},
 					},
+					topAssistsStat: {
+						$max: {
+							$cond: [
+								{ $ne: ["$assists", null] },
+								{ assists: "$assists", player: "$player" },
+								null,
+							],
+						},
+					},
 				},
 			},
 			{
@@ -2216,6 +2282,14 @@ const getMatchStatisticsTournament = async (matchIds) => {
 					localField: "topDefensiveReboundsStat.player",
 					foreignField: "_id",
 					as: "topDefensiveReboundsUser",
+				},
+			},
+			{
+				$lookup: {
+					from: "users",
+					localField: "topAssistsStat.player",
+					foreignField: "_id",
+					as: "topAssistsUser",
 				},
 			},
 			{
@@ -2320,6 +2394,39 @@ const getMatchStatisticsTournament = async (matchIds) => {
 							},
 						},
 					},
+					topAssists: {
+						assists: "$topAssistsStat.assists",
+						user: {
+							$cond: {
+								if: { $gt: ["$topAssistsStat.assists", 0] },
+								then: {
+									_id: { $arrayElemAt: ["$topAssistsUser._id", 0] },
+									firstName: {
+										$arrayElemAt: ["$topAssistsUser.firstName", 0],
+									},
+									lastName: {
+										$arrayElemAt: ["$topAssistsUser.lastName", 0],
+									},
+									displayName: {
+										$arrayElemAt: ["$topAssistsUser.displayName", 0],
+									},
+									profilePhoto: {
+										$arrayElemAt: ["$topAssistsUser.profilePhoto", 0],
+									},
+									email: {
+										$arrayElemAt: ["$topAssistsUser.email", 0],
+									},
+									ratings: {
+										$arrayElemAt: ["$topAssistsUser.ratings", 0],
+									},
+									rating: {
+										$arrayElemAt: ["$topAssistsUser.rating", 0],
+									},
+								},
+								else: null,
+							},
+						},
+					},
 				},
 			},
 		]);
@@ -2347,6 +2454,13 @@ const getMatchStatisticsTournament = async (matchIds) => {
 					? {
 							defensiveRebounds: result.topDefensiveRebounds.defensiveRebounds,
 							user: result.topDefensiveRebounds.user,
+					  }
+					: null,
+			topAssists:
+				result.topAssists.assists > 0
+					? {
+							assists: result.topAssists.assists,
+							user: result.topAssists.user,
 					  }
 					: null,
 		}));
