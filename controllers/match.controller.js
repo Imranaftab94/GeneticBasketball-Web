@@ -2916,6 +2916,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 				? req.query.community_center
 				: { $exists: true },
 			match_date: req.query.date ? req.query.date : { $exists: true },
+			status: MatchStatus.FINISHED,
 		})
 			.populate({
 				path: "team_A",
@@ -2944,6 +2945,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 			community_center: req.query.community_center
 				? req.query.community_center
 				: { $exists: true },
+			status: MatchStatus.FINISHED,
 		};
 
 		if (req.query.date) {
