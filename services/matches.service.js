@@ -291,6 +291,34 @@ function calculateStatsSumAsArray(statsArray) {
 	return totals;
 }
 
+// Helper function to calculate ranking points
+const calculatePlayerRanking = (
+	playerStats,
+	isWinner,
+	clutchThreshold = 25
+) => {
+	let rankingPoints = 0;
+
+	rankingPoints += playerStats.pointsScored; // 1 point per point scored
+	rankingPoints += playerStats.assists * 2; // 2 points per assist
+	rankingPoints += playerStats.rebounds * 5; // 5 points per rebound
+	rankingPoints += playerStats.steals * 5; // 5 points per steal
+	rankingPoints += playerStats.blocks * 5; // 5 points per block
+
+	// Calculate clutch stats points (stats after 25 points)
+	if (playerStats.pointsScored > clutchThreshold) {
+		const clutchPoints = (playerStats.pointsScored - clutchThreshold) * 2;
+		rankingPoints += clutchPoints;
+	}
+
+	// Add points for winning the game
+	if (isWinner) {
+		rankingPoints += 50;
+	}
+
+	return rankingPoints;
+};
+
 export {
 	updateMatchWinner,
 	updateTournamentMatchWinner,
@@ -298,4 +326,5 @@ export {
 	getMatchStatisticsSimple,
 	getMatchStatisticsTournament1,
 	calculateStatsSumAsArray,
+	calculatePlayerRanking,
 };

@@ -27,7 +27,10 @@ import { Team } from "../models/tournament_team.model.js";
 import { TournamentMatches } from "../models/tournament_match.model.js";
 import { TournamentPlayerMatchStat } from "../models/tournament_player_stats.model.js";
 import { updateMatchStatusSchema } from "../validators/match.validator.js";
-import { updateTournamentMatchWinner } from "../services/matches.service.js";
+import {
+	calculatePlayerRanking,
+	updateTournamentMatchWinner,
+} from "../services/matches.service.js";
 
 const createTournament = asyncHandler(async (req, res) => {
 	const { error } = createTournamentSchema.validate(req.body);
@@ -1019,6 +1022,139 @@ const getTournamentMatchesBasedOnUser = asyncHandler(async (req, res) => {
 	}
 });
 
+// @desc    Get Player Rankings in tournament
+// @route   POST /api/v1/tourments/rankings
+// @access  Private
+const getTournamentPlayerPerformance = async (req, res) => {
+	try {
+		debugger;
+		const { tournamentId } = req.query;
+
+		// Ensure the tournamentId is a valid ObjectId
+		if (!tournamentId) {
+			return errorResponse(
+				res,
+				"Tournament id is required",
+				statusCodes.BAD_GATEWAY
+			);
+		}
+
+		// Fetch all teams in the tournament
+		const teams = await Team.find({
+			tournament: new mongoose.Types.ObjectId(tournamentId),
+		}).populate({
+			path: "players.user",
+			select: "firstName lastName email profilePhoto", // Select player details from User model
+		});
+
+		// Check if teams exist
+		if (!teams || teams.length === 0) {
+			errorResponse(
+				res,
+				"No teams found for this tournament",
+				statusCodes.NOT_FOUND
+			);
+		}
+
+		let totalTournamentRankingPoints = 0;
+		let totalWins = 0;
+		let totalLosses = 0;
+		let tournamentPlayersPerformance = [];
+
+		// Fetch all matches for this tournament
+		const matches = await TournamentMatches.find({
+			tournament: new mongoose.Types.ObjectId(tournamentId),
+		}).populate("team_A team_B");
+
+		// Check if matches exist
+		if (!matches || matches.length === 0) {
+			errorResponse(
+				res,
+				"No matches found for this tournament",
+				statusCodes.NOT_FOUND
+			);
+		}
+
+		for (const team of teams) {
+			if (team.players && team.players.length > 0) {
+				for (const player of team.players) {
+					let playerRankingPoints = 0;
+					let playerWins = 0;
+					let playerLosses = 0;
+
+					// Calculate player stats for each match
+					for (const match of matches) {
+						const playerStats = await TournamentPlayerMatchStat.findOne({
+							player: player.user._id,
+							match: match._id,
+						});
+
+						if (playerStats) {
+							const isWinner =
+								(match.team_A._id.equals(team._id) && match.team_A.isWinner) ||
+								(match.team_B._id.equals(team._id) && match.team_B.isWinner);
+
+							// Calculate ranking points for the player's stats
+							playerRankingPoints += calculatePlayerRanking(
+								playerStats,
+								isWinner
+							);
+
+							// Track individual player's wins and losses
+							if (isWinner) {
+								playerWins++;
+								totalWins++;
+							} else {
+								playerLosses++;
+								totalLosses++;
+							}
+						}
+					}
+
+					// Add player's performance to the tournament players' performance array
+					tournamentPlayersPerformance.push({
+						player: player.user,
+						totalRankingPoints: playerRankingPoints,
+						wins: playerWins,
+						losses: playerLosses,
+					});
+
+					// Accumulate overall tournament ranking points
+					totalTournamentRankingPoints += playerRankingPoints;
+				}
+			}
+		}
+
+		// Sort players by ranking points in descending order to determine rankings
+		tournamentPlayersPerformance.sort(
+			(a, b) => b.totalRankingPoints - a.totalRankingPoints
+		);
+
+		// Add rank to each player based on their position in the sorted array
+		tournamentPlayersPerformance = tournamentPlayersPerformance.map(
+			(performance, index) => ({
+				...performance,
+				rank: index + 1,
+			})
+		);
+
+		// Respond with the tournament's overall performance
+		let data = {
+			totalTournamentRankingPoints,
+			totalWins,
+			totalLosses,
+			tournamentPlayersPerformance,
+		};
+		successResponse(res, data, statusCodes.OK);
+	} catch (error) {
+		return res.status(500).json({
+			success: false,
+			message: "Failed to retrieve tournament performance data",
+			error: error.message,
+		});
+	}
+};
+
 export {
 	createTournament,
 	listTournaments,
@@ -1035,4 +1171,5 @@ export {
 	endTournament,
 	updateTournament,
 	getTournamentMatchesBasedOnUser,
+	getTournamentPlayerPerformance,
 };
