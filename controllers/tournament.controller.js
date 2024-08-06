@@ -1027,7 +1027,6 @@ const getTournamentMatchesBasedOnUser = asyncHandler(async (req, res) => {
 // @access  Private
 const getTournamentPlayerPerformance = async (req, res) => {
 	try {
-		debugger;
 		const { tournamentId } = req.query;
 
 		// Ensure the tournamentId is a valid ObjectId
@@ -1049,7 +1048,7 @@ const getTournamentPlayerPerformance = async (req, res) => {
 
 		// Check if teams exist
 		if (!teams || teams.length === 0) {
-			errorResponse(
+			return errorResponse(
 				res,
 				"No teams found for this tournament",
 				statusCodes.NOT_FOUND
@@ -1068,7 +1067,7 @@ const getTournamentPlayerPerformance = async (req, res) => {
 
 		// Check if matches exist
 		if (!matches || matches.length === 0) {
-			errorResponse(
+			return errorResponse(
 				res,
 				"No matches found for this tournament",
 				statusCodes.NOT_FOUND
@@ -1145,13 +1144,13 @@ const getTournamentPlayerPerformance = async (req, res) => {
 			totalLosses,
 			tournamentPlayersPerformance,
 		};
-		successResponse(res, data, statusCodes.OK);
+		return successResponse(res, data, statusCodes.OK);
 	} catch (error) {
-		return res.status(500).json({
-			success: false,
-			message: "Failed to retrieve tournament performance data",
-			error: error.message,
-		});
+		errorResponse(
+			res,
+			"An error occurred while fetching tournaments player rankings",
+			statusCodes.INTERNAL_SERVER_ERROR
+		);
 	}
 };
 
