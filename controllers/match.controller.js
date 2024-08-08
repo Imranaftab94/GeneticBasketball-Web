@@ -2925,7 +2925,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 			})
 			.populate({
 				path: "team_B",
-				select: "isWinner matchScore",
+				select: "isWinner name matchScore",
 			})
 			.populate({
 				path: "community_center",
@@ -2959,11 +2959,11 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 		)
 			.populate({
 				path: "team_A",
-				select: "name matchScore isWinner",
+				select: "name matchScore isWinner players",
 			})
 			.populate({
 				path: "team_B",
-				select: "name matchScore isWinner",
+				select: "name matchScore isWinner players",
 			})
 			.populate({
 				path: "tournament",
