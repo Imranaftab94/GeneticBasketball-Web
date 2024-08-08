@@ -1063,7 +1063,10 @@ const getTournamentPlayerPerformance = async (req, res) => {
 		// Fetch all matches for this tournament
 		const matches = await TournamentMatches.find({
 			tournament: new mongoose.Types.ObjectId(tournamentId),
+			status: MatchStatus.FINISHED,
 		}).populate("team_A team_B");
+
+		console.log("Matches", matches.length);
 
 		// Check if matches exist
 		if (!matches || matches.length === 0) {
@@ -1095,30 +1098,34 @@ const getTournamentPlayerPerformance = async (req, res) => {
 						});
 
 						if (playerStats) {
+							const isTeamA = match.team_A._id.equals(team._id);
+							const isTeamB = match.team_B._id.equals(team._id);
 							const isWinner =
-								(match.team_A._id.equals(team._id) && match.team_A.isWinner) ||
-								(match.team_B._id.equals(team._id) && match.team_B.isWinner);
+								(isTeamA && match.team_A.isWinner) ||
+								(isTeamB && match.team_B.isWinner);
 
-							// Calculate ranking points for the player's stats
-							const rankingPoints = calculatePlayerRanking(
-								playerStats,
-								isWinner
-							);
-							tournamentPlayersPerformance[
-								player.user._id
-							].totalRankingPoints += rankingPoints;
+							if (isTeamA || isTeamB) {
+								// Calculate ranking points for the player's stats
+								const rankingPoints = calculatePlayerRanking(
+									playerStats,
+									isWinner
+								);
+								tournamentPlayersPerformance[
+									player.user._id
+								].totalRankingPoints += rankingPoints;
 
-							// Track individual player's wins and losses
-							if (isWinner) {
-								tournamentPlayersPerformance[player.user._id].wins++;
-								totalWins++;
-							} else {
-								tournamentPlayersPerformance[player.user._id].losses++;
-								totalLosses++;
+								// Track individual player's wins and losses
+								if (isWinner) {
+									tournamentPlayersPerformance[player.user._id].wins++;
+									totalWins++;
+								} else {
+									tournamentPlayersPerformance[player.user._id].losses++;
+									totalLosses++;
+								}
+
+								// Accumulate overall tournament ranking points
+								totalTournamentRankingPoints += rankingPoints;
 							}
-
-							// Accumulate overall tournament ranking points
-							totalTournamentRankingPoints += rankingPoints;
 						}
 					}
 				}
