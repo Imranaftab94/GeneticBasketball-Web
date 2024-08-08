@@ -2990,6 +2990,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 		let totalStatistics = calculateStatsSumAsArray(combinedStats);
 		let totalWins = 0;
 		let totalLosses = 0;
+		let totalRankingPoints = 0;
 
 		const formattedMatches = combinedMatches.map((match) => {
 			let playerData = {
@@ -3035,6 +3036,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 					playerStats,
 					teamAPlayer.isWinner
 				);
+				totalRankingPoints += rankingPoints ? rankingPoints : 0;
 				playerData = {
 					team: "A",
 					stats: playerStats,
@@ -3079,6 +3081,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 					playerStats,
 					teamBPlayer.isWinner
 				);
+				totalRankingPoints += rankingPoints ? rankingPoints : 0;
 				playerData = {
 					team: "B",
 					stats: playerStats,
@@ -3112,6 +3115,7 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 			};
 		});
 
+		totalStatistics.totalRankingPoints = totalRankingPoints;
 		let formattedResponse = {
 			matches: formattedMatches,
 			totalWins,
