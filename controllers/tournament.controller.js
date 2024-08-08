@@ -1058,7 +1058,7 @@ const getTournamentPlayerPerformance = async (req, res) => {
 		let totalTournamentRankingPoints = 0;
 		let totalWins = 0;
 		let totalLosses = 0;
-		let tournamentPlayersPerformance = [];
+		let tournamentPlayersPerformance = {};
 
 		// Fetch all matches for this tournament
 		const matches = await TournamentMatches.find({
@@ -1077,9 +1077,15 @@ const getTournamentPlayerPerformance = async (req, res) => {
 		for (const team of teams) {
 			if (team.players && team.players.length > 0) {
 				for (const player of team.players) {
-					let playerRankingPoints = 0;
-					let playerWins = 0;
-					let playerLosses = 0;
+					// Initialize player stats if not already done
+					if (!tournamentPlayersPerformance[player.user._id]) {
+						tournamentPlayersPerformance[player.user._id] = {
+							player: player.user,
+							totalRankingPoints: 0,
+							wins: 0,
+							losses: 0,
+						};
+					}
 
 					// Calculate player stats for each match
 					for (const match of matches) {
@@ -1094,43 +1100,41 @@ const getTournamentPlayerPerformance = async (req, res) => {
 								(match.team_B._id.equals(team._id) && match.team_B.isWinner);
 
 							// Calculate ranking points for the player's stats
-							playerRankingPoints += calculatePlayerRanking(
+							const rankingPoints = calculatePlayerRanking(
 								playerStats,
 								isWinner
 							);
+							tournamentPlayersPerformance[
+								player.user._id
+							].totalRankingPoints += rankingPoints;
 
 							// Track individual player's wins and losses
 							if (isWinner) {
-								playerWins++;
+								tournamentPlayersPerformance[player.user._id].wins++;
 								totalWins++;
 							} else {
-								playerLosses++;
+								tournamentPlayersPerformance[player.user._id].losses++;
 								totalLosses++;
 							}
+
+							// Accumulate overall tournament ranking points
+							totalTournamentRankingPoints += rankingPoints;
 						}
 					}
-
-					// Add player's performance to the tournament players' performance array
-					tournamentPlayersPerformance.push({
-						player: player.user,
-						totalRankingPoints: playerRankingPoints,
-						wins: playerWins,
-						losses: playerLosses,
-					});
-
-					// Accumulate overall tournament ranking points
-					totalTournamentRankingPoints += playerRankingPoints;
 				}
 			}
 		}
 
-		// Sort players by ranking points in descending order to determine rankings
-		tournamentPlayersPerformance.sort(
+		// Convert the object into an array and sort players by ranking points in descending order to determine rankings
+		let tournamentPlayersPerformanceArray = Object.values(
+			tournamentPlayersPerformance
+		);
+		tournamentPlayersPerformanceArray.sort(
 			(a, b) => b.totalRankingPoints - a.totalRankingPoints
 		);
 
 		// Add rank to each player based on their position in the sorted array
-		tournamentPlayersPerformance = tournamentPlayersPerformance.map(
+		tournamentPlayersPerformanceArray = tournamentPlayersPerformanceArray.map(
 			(performance, index) => ({
 				...performance,
 				rank: index + 1,
@@ -1142,13 +1146,13 @@ const getTournamentPlayerPerformance = async (req, res) => {
 			totalTournamentRankingPoints,
 			totalWins,
 			totalLosses,
-			tournamentPlayersPerformance,
+			tournamentPlayersPerformance: tournamentPlayersPerformanceArray,
 		};
 		return successResponse(res, data, statusCodes.OK);
 	} catch (error) {
-		errorResponse(
+		return errorResponse(
 			res,
-			"An error occurred while fetching tournaments player rankings",
+			"An error occurred while fetching tournament player rankings",
 			statusCodes.INTERNAL_SERVER_ERROR
 		);
 	}
