@@ -301,9 +301,12 @@ const calculatePlayerRanking = (
 
 	rankingPoints += playerStats.pointsScored * 2; // 1 point per point scored
 	rankingPoints += playerStats.assists * 5; // 2 points per assist
-	rankingPoints += playerStats.rebounds * 5; // 5 points per rebound
+	rankingPoints +=
+		(playerStats.offensiveRebounds ? playerStats.offensiveRebounds : 0) * 5; // 5 points per rebound
 	rankingPoints += playerStats.steals * 5; // 5 points per steal
 	rankingPoints += playerStats.blocks * 5; // 5 points per block
+	rankingPoints +=
+		(playerStats.defensiveRebounds ? playerStats.defensiveRebounds : 0) * 5; // 5 points per block
 
 	// Calculate clutch stats points (stats after 25 points)
 	if (playerStats.pointsScored > clutchThreshold) {
