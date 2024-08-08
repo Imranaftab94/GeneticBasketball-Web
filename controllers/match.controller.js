@@ -18,6 +18,7 @@ import mongoose, { MongooseError } from "mongoose";
 import { MatchStatus } from "../constants/match-status.constant.js";
 import { PlayerMatchStats } from "../models/player_stats.model.js";
 import {
+	calculatePlayerRanking,
 	calculateStatsSumAsArray,
 	getMatchStatisticsSimple,
 	getMatchStatisticsTournament1,
@@ -3030,10 +3031,15 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 					pointsScored: 0,
 				};
 				teamAPlayer.isWinner = isWinner;
+				const rankingPoints = calculatePlayerRanking(
+					playerStats,
+					teamAPlayer.isWinner
+				);
 				playerData = {
 					team: "A",
 					stats: playerStats,
 					isWinner: isWinner,
+					rankingPoints: rankingPoints ? rankingPoints : 0,
 					matchScore: match.team_A.matchScore,
 					opponentScore: match.team_B.matchScore,
 				};
@@ -3069,10 +3075,15 @@ const getPlayerMatchStatsWithFilter = asyncHandler(async (req, res) => {
 					pointsScored: 0,
 				};
 				teamBPlayer.isWinner = isWinner;
+				const rankingPoints = calculatePlayerRanking(
+					playerStats,
+					teamBPlayer.isWinner
+				);
 				playerData = {
 					team: "B",
 					stats: playerStats,
 					isWinner: isWinner,
+					rankingPoints: rankingPoints ? rankingPoints : 0,
 					matchScore: match.team_B.matchScore,
 					opponentScore: match.team_A.matchScore,
 				};
