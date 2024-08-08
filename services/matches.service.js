@@ -297,18 +297,18 @@ const calculatePlayerRanking = (
 	isWinner,
 	clutchThreshold = 25
 ) => {
+	console.log("PLayer stats", playerStats);
 	if (playerStats) {
 		let rankingPoints = 0;
 
 		rankingPoints +=
 			(playerStats.pointsScored ? playerStats.pointsScored : 0) * 2; // 1 point per point scored
 		rankingPoints += (playerStats.assists ? playerStats.assists : 0) * 5; // 2 points per assist
-		rankingPoints +=
-			(playerStats.offensiveRebounds ? playerStats.offensiveRebounds : 0) * 5; // 5 points per rebound
+		// rankingPoints +=
+		// 	(playerStats.offensiveRebounds ? playerStats.offensiveRebounds : 0) * 5; // 5 points per rebound
 		rankingPoints += (playerStats.steals ? playerStats.steals : 0) * 5; // 5 points per steal
 		rankingPoints += (playerStats.blocks ? playerStats.blocks : 0) * 5; // 5 points per block
-		rankingPoints +=
-			(playerStats.defensiveRebounds ? playerStats.defensiveRebounds : 0) * 5; // 5 points per block
+		rankingPoints += (playerStats.defensiveRebounds ? playerStats.defensiveRebounds : 0) * 5; // 5 points per block
 
 		// Calculate clutch stats points (stats after 25 points)
 		if (playerStats.pointsScored > clutchThreshold) {
@@ -318,7 +318,9 @@ const calculatePlayerRanking = (
 
 		// Add points for winning the game
 		if (isWinner) {
+			console.log("Ranking Points----", rankingPoints);
 			rankingPoints += 50;
+			console.log("Ranking Points", rankingPoints);
 		}
 
 		return rankingPoints;

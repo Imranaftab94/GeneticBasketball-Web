@@ -20,7 +20,7 @@ const playerMatchStatsSchema = new Schema(
 		threePointersPercentage: Number,
 		threePointersAttempted: Number,
 		offensiveRebounds: Number,
-		rebounds: Number,
+		defensiveRebounds: Number,
 		assists: Number,
 		steals: Number,
 		blocks: Number,

@@ -71,7 +71,7 @@ const TournamentPlayerMatchStatsSchema = Joi.object({
   fieldGoalsPercentage: Joi.number().required(),
   threePointersPercentage: Joi.number().required(),
   offensiveRebounds: Joi.number().required(),
-  rebounds: Joi.number().required(),
+  defensiveRebounds: Joi.number().required(),
   assists: Joi.number().required(),
   steals: Joi.number().required(),
   blocks: Joi.number().required(),

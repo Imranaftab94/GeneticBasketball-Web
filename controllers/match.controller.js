@@ -1374,7 +1374,7 @@ const getPlayerOverallStats = asyncHandler(async (req, res) => {
 					totalFreeThrowsMade: { $sum: "$freeThrowsMade" },
 					totalFreeThrowsAttempted: { $sum: "$freeThrowsAttempted" },
 					totalOffensiveRebounds: { $sum: "$offensiveRebounds" },
-					totalDefensiveRebounds: { $sum: "$rebounds" }, // Assuming rebounds include both offensive and defensive
+					totalDefensiveRebounds: { $sum: "$defensiveRebounds" }, // Assuming rebounds include both offensive and defensive
 					totalAssists: { $sum: "$assists" },
 					totalSteals: { $sum: "$steals" },
 					totalBlocks: { $sum: "$blocks" },
